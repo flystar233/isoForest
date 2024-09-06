@@ -23,7 +23,8 @@ Imports:
     stats,
     ranger,
     dplyr,
-    tidyr
+    tidyr,
+    ggplot2
 URL: https://github.com/flystar233/isoForest
 BugReports: https://github.com/flystar233/isoForest/issues
 Suggests: 

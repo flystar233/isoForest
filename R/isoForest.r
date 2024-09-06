@@ -69,5 +69,11 @@ isoForest <- function(data,
       average_depth = mean(depth),
       anomaly_score = computeAnomaly(average_depth, sample_size)
     )
-  return(scores)
+
+  result <- list(
+    model = model,
+    scores = scores
+  )
+  class(result) <- c("isoForest")
+  return(result)
 }
