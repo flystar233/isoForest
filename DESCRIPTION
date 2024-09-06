@@ -1,0 +1,34 @@
+Package: isoForest
+Type: Package
+Title: Find the Outlier by Isolation Forest
+Version: 1.0.0
+Date: 2024-08-27
+Author: Tengfei Xu [aut, cre]
+Maintainer: Tengfei Xu <flystar233@gmail.com>
+Authors@R: 
+    person(given = "Tengfei",
+           family = "Xu",
+           role = c("aut", "cre"),
+           email = "flystar233@gmail.com")
+Description: Provides a simple method to replicate outlier detection using Isolation Forest. The isolation forest is built using the 'ranger' package. Isolation forest algorithm is anomaly detection method introduced by the paper Isolation based Anomaly Detection (Liu, Ting and Zhou <doi:10.1145/2133360.2133363>).
+LazyData: false
+License: MIT + file LICENSE
+Depends: 
+    R (>= 4.0.0)
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+Packaged: 2024-08-22 11:06:44 UTC;
+RoxygenNote: 7.3.2
+Imports: 
+    stats,
+    ranger,
+    dplyr,
+    tidyr
+URL: https://github.com/flystar233/isoForest
+BugReports: https://github.com/flystar233/isoForest/issues
+Suggests: 
+    renv,
+    knitr,
+    testthat (>= 3.0.0)
+VignetteBuilder: knitr
+Config/testthat/edition: 3
