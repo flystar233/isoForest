@@ -9,6 +9,7 @@
 #' # Fit the anomaly detection model
 #' model <- isoForest(iris[1:2])
 #' # Plot the anomaly scores
+#' library(ggplot2)
 #' anomaly_plot(model, iris[1:2])
 #' @export
 anomaly_plot <- function(object, data = NULL) {
@@ -25,7 +26,7 @@ anomaly_plot <- function(object, data = NULL) {
   scores <- stats::predict(object, space_d)
   space_df <- data.frame(space_d, scores$anomaly_score)
   ggplot2::ggplot() +
-    ggplot2::geom_tile(data = space_df, aes(x = space_df[[1]], y = space_df[[2]], fill = space_df[[3]])) +
+    ggplot2::geom_tile(data = space_df, ggplot2::aes(x = space_df[[1]], y = space_df[[2]], fill = space_df[[3]])) +
     ggplot2::scale_fill_gradientn(colors = rev(heat.colors(50))) +
     ggplot2::geom_point(data = data, aes(x = data[[1]], y = data[[2]]), color = "#0000801A") +
     ggplot2::xlab(column_names[1]) +
