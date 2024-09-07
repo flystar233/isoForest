@@ -24,6 +24,6 @@ head(result$scores)
 ## visualization
 ```r
 result <- isoForest(iris[1:2])
-anomaly_plot(result,iris[1:2])
+anomaly_plot(result,iris[1:2],plot_type="heatmap")
 ```
 ![](https://github.com/user-attachments/assets/8518b445-1631-4e7b-be30-ddcc3dac10ac)
