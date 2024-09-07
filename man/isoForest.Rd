@@ -11,7 +11,8 @@ isoForest(
   max_depth = ceiling(log2(sample_size)),
   mtry = NULL,
   num.threads = NULL,
-  seed = NULL
+  seed = NULL,
+  ...
 )
 }
 \arguments{
@@ -28,6 +29,8 @@ isoForest(
 \item{num.threads}{The number of threads to use for parallel processing. Default is NULL, which means that all available threads are used.}
 
 \item{seed}{The seed for random number generation. Default is NULL, which means that the current time is used as the seed.}
+
+\item{...}{Additional arguments to be passed to the ranger function.}
 }
 \value{
 A list containing the anomaly scores for each data point. The anomaly scores are calculated as the average path length from the data point to the root of the tree.

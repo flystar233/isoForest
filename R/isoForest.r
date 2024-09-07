@@ -8,6 +8,7 @@
 #' @param mtry The number of variables to consider when splitting each node. Default is NULL, which means that the number of variables is set to the square root of the number of variables in the data.
 #' @param num.threads The number of threads to use for parallel processing. Default is NULL, which means that all available threads are used.
 #' @param seed The seed for random number generation. Default is NULL, which means that the current time is used as the seed.
+#' @param ... Additional arguments to be passed to the ranger function.
 #' @return A list containing the anomaly scores for each data point. The anomaly scores are calculated as the average path length from the data point to the root of the tree.
 #' @examples
 #' # Load the required libraries

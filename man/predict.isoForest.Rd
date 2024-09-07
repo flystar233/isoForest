@@ -7,7 +7,6 @@
 \method{predict}{isoForest}(
   object,
   newdata,
-  sample_size = min(nrow(newdata), 256L),
   num.threads = NULL,
   type = "terminalNodes",
   seed = NULL,
@@ -18,9 +17,6 @@
 \item{object}{an Isolation Forest model}
 
 \item{newdata}{a data frame containing the new observations to be predicted}
-
-\item{sample_size}{the sample size to be used for the anomaly score calculation
-(default is the minimum of the number of observations in \code{newdata} and 256)}
 
 \item{num.threads}{the number of threads to be used for the prediction (default is NULL, which means all available threads)}
 

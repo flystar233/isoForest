@@ -3,8 +3,6 @@
 #' Predict anomaly scores using an Isolation Forest model
 #' @param object an Isolation Forest model
 #' @param newdata a data frame containing the new observations to be predicted
-#' @param sample_size the sample size to be used for the anomaly score calculation
-#' (default is the minimum of the number of observations in `newdata` and 256)
 #' @param num.threads the number of threads to be used for the prediction (default is NULL, which means all available threads)
 #' @param type the type of prediction to be made (default is "terminalNodes")
 #' @param seed the seed to be used for the random number generator (default is NULL)
