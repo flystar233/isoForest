@@ -24,8 +24,18 @@ isoForest <- function(data,
                       max_depth = ceiling(log2(sample_size)),
                       mtry = NULL,
                       num.threads = NULL,
-                      seed = NULL) {
+                      seed = NULL,
+                      ...) {
   # Initial check
+  if (num_trees<=0) {
+    stop("The number of trees is at least 1")
+  }
+  if (sample_size<=0) {
+    stop("The sample size is at least 1")
+  }
+  if (max_depth<=0) {
+    stop("The max depth is at least 1")
+  }
   if (!is.data.frame(data)) {
     data <- as.data.frame(data)
   }
@@ -51,11 +61,15 @@ isoForest <- function(data,
     min.node.size = 1L,
     num.random.splits = 1L,
     splitrule = "extratrees",
-    replace = FALSE
-  )
+    replace = FALSE,
+    ...)
   terminal_nodes_depth <- calculate_leaf_to_root_depth(model)
 
-  tnm <- stats::predict(model, data, type = "terminalNodes", num.threads = num.threads)[["predictions"]]
+  tnm <- stats::predict(model,
+                        data,
+                        type = "terminalNodes",
+                        num.threads = num.threads,
+                        ...)[["predictions"]]
   tnm <- as.data.frame(tnm)
   colnames(tnm) <- as.character(1:ncol(tnm))
   tnm$id <- 1:nrow(tnm)
@@ -72,7 +86,10 @@ isoForest <- function(data,
 
   result <- list(
     model = model,
-    scores = scores
+    scores = scores,
+    sample_size = sample_size,
+    max_depth = max_depth,
+    seed = seed
   )
   class(result) <- c("isoForest")
   return(result)

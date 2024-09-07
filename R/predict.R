@@ -20,13 +20,24 @@
 #' @export
 predict.isoForest <- function(object,
                               newdata,
-                              sample_size = min(nrow(newdata), 256L),
                               num.threads = NULL,
                               type = "terminalNodes",
                               seed = NULL,
                               ...) {
+  if (is.null(seed)) {
+    set.seed(as.numeric(Sys.time()))
+  } else {
+    set.seed(seed)
+  }
+  if (!is.data.frame(newdata)) {
+    newdata <- as.data.frame(newdata)
+  }
   terminal_nodes_depth <- calculate_leaf_to_root_depth(object$model)
-  tnm <- stats::predict(object$model, newdata, type = type, num.threads = num.threads)[["predictions"]]
+  tnm <- stats::predict(object$model,
+                        newdata,
+                        type = type,
+                        num.threads = num.threads,
+                        ...)[["predictions"]]
   tnm <- as.data.frame(tnm)
   colnames(tnm) <- as.character(1:ncol(tnm))
   tnm$id <- 1:nrow(tnm)
@@ -38,7 +49,7 @@ predict.isoForest <- function(object,
     dplyr::group_by(id) |>
     dplyr::summarise(
       average_depth = mean(depth),
-      anomaly_score = computeAnomaly(average_depth, sample_size)
+      anomaly_score = computeAnomaly(average_depth, object$sample_size)
     )
 
   return(scores)

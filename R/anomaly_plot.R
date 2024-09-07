@@ -13,6 +13,9 @@
 #' anomaly_plot(model, iris[1:2])
 #' @export
 anomaly_plot <- function(object, data = NULL) {
+  if (!is.data.frame(data)) {
+    data <- as.data.frame(data)
+  }
   max_values <- apply(data, 2, max)
   min_values <- apply(data, 2, min)
   x_max <- max_values[1] + 1
