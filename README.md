@@ -1,6 +1,7 @@
 # isoForest
 The isoForest package is a simple replication of the Isolation Forests algorithm for outlier detection, and the [ranger](https://github.com/imbs-hl/ranger) package is used to truly construct the forests.
 In addition, the visualization of outliers is also implemented to help better observe the prediction results.
+
 ## Installation
 ```r
 # Development version
@@ -25,4 +26,4 @@ head(result$scores)
 result <- isoForest(iris[1:2])
 anomaly_plot(result,iris[1:2])
 ```
-![anomaly_plot-1](https://github.com/user-attachments/assets/8518b445-1631-4e7b-be30-ddcc3dac10ac)
+![](https://github.com/user-attachments/assets/8518b445-1631-4e7b-be30-ddcc3dac10ac)

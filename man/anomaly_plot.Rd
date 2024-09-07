@@ -4,7 +4,12 @@
 \alias{anomaly_plot}
 \title{Anomaly plot}
 \usage{
-anomaly_plot(object, data = NULL)
+anomaly_plot(
+  object,
+  data = NULL,
+  plot_type = c("heatmap", "scatter"),
+  contamination = 0.05
+)
 }
 \arguments{
 \item{object}{The fitted isoForest model object}
@@ -23,6 +28,6 @@ data("iris")
 # Fit the anomaly detection model
 model <- isoForest(iris[1:2])
 # Plot the anomaly scores
-library(ggplot2)
-anomaly_plot(model, iris[1:2])
+anomaly_plot(model, iris[1:2],plot_type="scatter")
+anomaly_plot(model, iris[1:2],plot_type="heatmap")
 }
