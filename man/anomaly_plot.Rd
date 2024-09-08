@@ -15,6 +15,10 @@ anomaly_plot(
 \item{object}{The fitted isoForest model object}
 
 \item{data}{The data to be plotted.}
+
+\item{plot_type}{The type of plot to be generated. Either "heatmap" or "scatter".}
+
+\item{contamination}{The proportion of outliers in the data. Default is 0.05. This parameter is used to determine the threshold for anomaly scores.}
 }
 \value{
 A ggplot object.

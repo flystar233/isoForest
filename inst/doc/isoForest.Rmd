@@ -19,7 +19,7 @@ knitr::opts_chunk$set(
   comment = "#>",
   warning = FALSE,
   message = FALSE,
-  fig.width = 6, 
+  fig.width = 6,
   fig.height = 4,
   fig.align = "center"
 )
@@ -84,12 +84,12 @@ head(result$scores)
 
 ```{r heatmap, echo=TRUE}
 result <- isoForest(iris[1:2])
-anomaly_plot(result,iris[1:2],plot_type="heatmap")
+anomaly_plot(result, iris[1:2], plot_type = "heatmap")
 ```
 
 ## scatter
 
 ```{r scatter, echo=TRUE}
 result <- isoForest(iris[1:2])
-anomaly_plot(result,iris[1:2],plot_type="scatter")
+anomaly_plot(result, iris[1:2], plot_type = "scatter")
 ```

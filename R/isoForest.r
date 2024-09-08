@@ -28,13 +28,13 @@ isoForest <- function(data,
                       seed = NULL,
                       ...) {
   # Initial check
-  if (num_trees<=0) {
+  if (num_trees <= 0) {
     stop("The number of trees is at least 1")
   }
-  if (sample_size<=0) {
+  if (sample_size <= 0) {
     stop("The sample size is at least 1")
   }
-  if (max_depth<=0) {
+  if (max_depth <= 0) {
     stop("The max depth is at least 1")
   }
   if (!is.data.frame(data)) {
@@ -45,7 +45,6 @@ isoForest <- function(data,
   } else {
     set.seed(seed)
   }
-  column_names <- colnames(data)
   nr <- nrow(data)
   sample_fraction <- sample_size / nr
   fake_feature <- sample.int(nrow(data))
@@ -63,17 +62,18 @@ isoForest <- function(data,
     num.random.splits = 1L,
     splitrule = "extratrees",
     replace = FALSE,
-    ...)
+    ...
+  )
   terminal_nodes_depth <- calculate_leaf_to_root_depth(model)
-
   tnm <- stats::predict(model,
-                        data,
-                        type = "terminalNodes",
-                        num.threads = num.threads,
-                        ...)[["predictions"]]
+    data,
+    type = "terminalNodes",
+    num.threads = num.threads,
+    ...
+  )[["predictions"]]
   tnm <- as.data.frame(tnm)
-  colnames(tnm) <- as.character(1:ncol(tnm))
-  tnm$id <- 1:nrow(tnm)
+  colnames(tnm) <- as.character(seq_len(ncol(tnm)))
+  tnm$id <- seq_len(nrow(tnm))
   tnm <- tidyr::pivot_longer(tnm, cols = -id, names_to = "treeID", values_to = "nodeID")
   tnm$treeID <- as.integer(tnm$treeID)
   tnm$nodeID <- as.integer(tnm$nodeID)

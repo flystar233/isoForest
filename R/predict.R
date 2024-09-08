@@ -32,13 +32,14 @@ predict.isoForest <- function(object,
   }
   terminal_nodes_depth <- calculate_leaf_to_root_depth(object$model)
   tnm <- stats::predict(object$model,
-                        newdata,
-                        type = type,
-                        num.threads = num.threads,
-                        ...)[["predictions"]]
+    newdata,
+    type = type,
+    num.threads = num.threads,
+    ...
+  )[["predictions"]]
   tnm <- as.data.frame(tnm)
-  colnames(tnm) <- as.character(1:ncol(tnm))
-  tnm$id <- 1:nrow(tnm)
+  colnames(tnm) <- as.character(seq_len(ncol(tnm)))
+  tnm$id <- seq_len(nrow(tnm))
   tnm <- tidyr::pivot_longer(tnm, cols = -id, names_to = "treeID", values_to = "nodeID")
   tnm$treeID <- as.integer(tnm$treeID)
   tnm$nodeID <- as.integer(tnm$nodeID)
