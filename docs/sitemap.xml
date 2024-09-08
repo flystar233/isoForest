@@ -1,0 +1,20 @@
+<urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
+<url><loc>/404.html</loc></url>
+<url><loc>/articles/index.html</loc></url>
+<url><loc>/articles/isoForest.html</loc></url>
+<url><loc>/authors.html</loc></url>
+<url><loc>/index.html</loc></url>
+<url><loc>/LICENSE-text.html</loc></url>
+<url><loc>/LICENSE.html</loc></url>
+<url><loc>/news/index.html</loc></url>
+<url><loc>/reference/anomaly_plot.html</loc></url>
+<url><loc>/reference/calculate_depth_per_tree.html</loc></url>
+<url><loc>/reference/calculate_leaf_to_root_depth.html</loc></url>
+<url><loc>/reference/computeAnomaly.html</loc></url>
+<url><loc>/reference/harmonic_approx.html</loc></url>
+<url><loc>/reference/index.html</loc></url>
+<url><loc>/reference/isoForest.html</loc></url>
+<url><loc>/reference/pathLengthNormalizer.html</loc></url>
+<url><loc>/reference/predict.isoForest.html</loc></url>
+</urlset>
+

@@ -1,0 +1,95 @@
+---
+title: "Using isoForest"
+author: "lucian xu"
+date: "`r Sys.Date()`"
+link-citations: true
+vignette: >
+  %\VignetteIndexEntry{Using 'isoForest'}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  warning = FALSE,
+  message = FALSE,
+  fig.width = 6, 
+  fig.height = 4,
+  fig.align = "center"
+)
+```
+
+## Overview
+
+The {isoForest} package is a simple replication of the Isolation Forests
+algorithm for outlier detection, and the {ranger} package is used to
+truly construct the forests. In addition, the visualization of outliers
+is also implemented to help better observe the prediction results.
+
+Here's how isoForest was built:
+
+1.  Use the ranger() function of the 'ranger' package to build the
+    forest. Key parameter for Isolation Forests is:
+
+    -   **sample_size: min(nrow(data), 256L)** *In the process of
+        constructing a decision tree, when the sampling number is 256,
+        the effect is the best.If the number of samples does not exceed
+        256, take all samples.*
+    -   **max_depth: ceiling(log2(sample_size))**
+    -   **min.node.size: 1** *Every sample ultimately exists in an
+        independent node.*
+    -   **num.random.splits: 1** *Consider splitting based on only one
+        feature each time.*
+    -   **splitrule: "extratrees"** *The splitting point of the feature
+        is random.*
+    -   **replace: FALSE** *Perform sampling without replacement.*
+
+2.  Obtain the depth information from each leaf node to the root node
+    for every tree in the model.
+
+3.  Use the original samples for prediction and obtain the predicted
+    leaf node ID for each sample in each tree.
+
+4.  Retrieve the depth of the predicted value for each sample in each
+    tree and calculate the average depth across the entire forest for
+    each sample.
+
+5.  Calculate the anomaly score for each sample using the average depth
+    across the entire forest.
+
+## Installation
+
+```{r install, eval=FALSE, include=FALSE}
+# Development version
+devtools::install_github("flystar233/isoForest")
+```
+
+## Usage
+
+```{r usage, echo=TRUE}
+library(isoForest)
+result <- isoForest(iris)
+head(result$scores)
+```
+
+## Visualization
+
+## heatmap
+
+```{r heatmap, echo=TRUE}
+result <- isoForest(iris[1:2])
+anomaly_plot(result,iris[1:2],plot_type="heatmap")
+```
+
+## scatter
+
+```{r scatter, echo=TRUE}
+result <- isoForest(iris[1:2])
+anomaly_plot(result,iris[1:2],plot_type="scatter")
+```
