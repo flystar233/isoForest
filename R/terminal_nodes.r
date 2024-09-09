@@ -63,3 +63,37 @@ calculate_leaf_to_root_depth <- function(model) {
   leaf_root_depth_result <- dplyr::bind_rows(leaf_root_depth_with_id)
   return(leaf_root_depth_result)
 }
+
+#' @title Calculate the number of times a feature is used in terminal nodes.
+#' @description The number of times a feature is used in terminal nodes of all
+#'   trees in a ranger model is returned as a dataframe with column names:
+#'   'feature', 'count'.
+#' @param model A ranger model
+#' @param obs_depth A dataframe with columns: 'nodeID', 'treeID'.
+#' @return A dataframe with two columns: 'feature', 'count'.
+#' @examples
+#' 
+#' result <- isoForest(iris,feature_contribution = TRUE)
+#' head(result$feature_contributions)
+calculate_feature_counts <- function(model, obs_depth) { 
+    feature_names <- model$forest$independent.variable.names   
+    total_feature_counts <- setNames(rep(0, length(feature_names)), feature_names)
+    for (i in 1:nrow(obs_depth)) {
+        nodeID <- obs_depth$nodeID[i]
+        treeID <- obs_depth$treeID[i]
+        current_tree <- ranger::treeInfo(model, treeID)
+        current_node <- nodeID
+        while (TRUE) {
+            node_info <- current_tree[current_tree$nodeID == current_node, ]          
+            if (!is.na(node_info$splitvarName) && node_info$splitvarName != "") {
+                total_feature_counts[node_info$splitvarName] <- total_feature_counts[node_info$splitvarName] + 1
+            }
+            if (current_node == 0) {
+                break
+            }        
+            parent_node <- current_tree$nodeID[current_tree$leftChild == current_node | current_tree$rightChild == current_node]
+            current_node <- parent_node[!is.na(parent_node)]
+        }
+    }
+    return(total_feature_counts)
+}

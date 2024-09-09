@@ -8,6 +8,7 @@
 #' @param mtry The number of variables to consider when splitting each node. Default is NULL, which means that the number of variables is set to the square root of the number of variables in the data.
 #' @param num.threads The number of threads to use for parallel processing. Default is NULL, which means that all available threads are used.
 #' @param seed The seed for random number generation. Default is NULL, which means that the current time is used as the seed.
+#' @param feature_contribution A logical value indicating whether to calculate feature contributions. Default is FALSE.
 #' @param ... Additional arguments to be passed to the ranger function.
 #' @return A list containing the anomaly scores for each data point. The anomaly scores are calculated as the average path length from the data point to the root of the tree.
 #' @examples
@@ -26,6 +27,7 @@ isoForest <- function(data,
                       mtry = NULL,
                       num.threads = NULL,
                       seed = NULL,
+                      feature_contribution = FALSE,
                       ...) {
   # Initial check
   if (num_trees <= 0) {
@@ -48,6 +50,7 @@ isoForest <- function(data,
   nr <- nrow(data)
   sample_fraction <- sample_size / nr
   fake_feature <- sample.int(nrow(data))
+  feature_contributions = NULL
 
   model <- ranger::ranger(
     x = data,
@@ -78,6 +81,10 @@ isoForest <- function(data,
   tnm$treeID <- as.integer(tnm$treeID)
   tnm$nodeID <- as.integer(tnm$nodeID)
   obs_depth <- dplyr::inner_join(terminal_nodes_depth, tnm, by = c("treeID", "nodeID"))
+  if(feature_contribution){
+    split_data <- split(obs_depth, obs_depth$id)
+    feature_contributions <- lapply(split_data, function(data) calculate_feature_counts(model, data))
+  }
   scores <- obs_depth |>
     dplyr::group_by(id) |>
     dplyr::summarise(
@@ -90,7 +97,8 @@ isoForest <- function(data,
     scores = scores,
     sample_size = sample_size,
     max_depth = max_depth,
-    seed = seed
+    seed = seed,
+    feature_contributions = feature_contributions
   )
   class(result) <- c("isoForest")
   return(result)
