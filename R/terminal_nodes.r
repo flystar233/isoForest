@@ -8,14 +8,16 @@
 #' @export
 calculate_depth_per_tree <- function(df) {
   # Store the nodeID of each leaf node and its distance to the root node
-  leaf_depth <- data.frame(nodeID = integer(), depth = integer())
+  leaf_nodes <- which(df$terminal)
+  leaf_depth <- matrix(NA, nrow = length(leaf_nodes), ncol = 2)
+  colnames(leaf_depth) <- c("nodeID", "depth")
 
   # Iterate over each row of the data frame
-  for (i in seq_len(nrow(df))) {
+  for (i in seq_along(leaf_nodes)) {
     # If it's a leaf node (terminal == TRUE)
-    if (df$terminal[i]) {
+    if (df$terminal[leaf_nodes[i]]) {
       depth <- 0
-      current_node <- i
+      current_node <- leaf_nodes[i]
 
       # Traverse upwards until the root node (nodeID == 0)
       while (df$nodeID[current_node] != 0) {
@@ -32,10 +34,12 @@ calculate_depth_per_tree <- function(df) {
         depth <- depth + 1
       }
 
-      # Store the calculated distance and nodeID in the data frame
-      leaf_depth <- rbind(leaf_depth, data.frame(nodeID = df$nodeID[i], depth = depth))
+      # Store the calculated distance and nodeID in the matrix
+      leaf_depth[i, "nodeID"] <- df$nodeID[leaf_nodes[i]]
+      leaf_depth[i, "depth"] <- depth
     }
   }
+  leaf_depth <- as.data.frame(leaf_depth)
   return(leaf_depth)
 }
 #' @title Calculate the depth from leaf to root.
@@ -50,7 +54,7 @@ calculate_depth_per_tree <- function(df) {
 #' head(result)
 #' @export
 calculate_leaf_to_root_depth <- function(model) {
-  leaf_root_depth <- lapply(1:model$num.trees, function(x) {
+  leaf_root_depth <- lapply(seq_len(model$num.trees), function(x) {
     calculate_depth_per_tree(ranger::treeInfo(model, x))
   })
   leaf_root_depth_with_id <- lapply(seq_along(leaf_root_depth), function(i) {
