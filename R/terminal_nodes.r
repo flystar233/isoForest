@@ -75,25 +75,46 @@ calculate_leaf_to_root_depth <- function(model) {
 #' 
 #' result <- isoForest(iris,feature_contribution = TRUE)
 #' head(result$feature_contributions)
-calculate_feature_counts <- function(model, obs_depth) { 
-    feature_names <- model$forest$independent.variable.names   
+calculate_feature_counts <- function(ranger_model, result_df) {
+    
+    # Get all feature names
+    feature_names <- ranger_model$forest$independent.variable.names
+    
+    # Initialize feature counts
     total_feature_counts <- setNames(rep(0, length(feature_names)), feature_names)
-    for (i in 1:nrow(obs_depth)) {
-        nodeID <- obs_depth$nodeID[i]
-        treeID <- obs_depth$treeID[i]
-        current_tree <- ranger::treeInfo(model, treeID)
+    
+    # Process each row in the result dataframe
+    for (i in 1:nrow(result_df)) {
+        nodeID <- result_df$nodeID[i]
+        treeID <- result_df$treeID[i]
+        
+        # Get information for the current tree
+        current_tree <- ranger::treeInfo(ranger_model, treeID)
+        
+        # Traverse from leaf node to root node (including root)
         current_node <- nodeID
         while (TRUE) {
-            node_info <- current_tree[current_tree$nodeID == current_node, ]          
+            # Get information for the current node
+            node_info <- current_tree[current_tree$nodeID == current_node, ]
+            
+            # Count the feature used (including root node)
             if (!is.na(node_info$splitvarName) && node_info$splitvarName != "") {
                 total_feature_counts[node_info$splitvarName] <- total_feature_counts[node_info$splitvarName] + 1
             }
+            
+            # Exit loop if root node is reached
             if (current_node == 0) {
                 break
-            }        
+            }
+            
+            # Find the parent node
             parent_node <- current_tree$nodeID[current_tree$leftChild == current_node | current_tree$rightChild == current_node]
+            
+            # Move to the parent node
             current_node <- parent_node[!is.na(parent_node)]
         }
     }
+    
+    # Return the feature count results
     return(total_feature_counts)
 }
