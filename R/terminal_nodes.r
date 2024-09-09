@@ -18,7 +18,6 @@ calculate_depth_per_tree <- function(df) {
     if (df$terminal[leaf_nodes[i]]) {
       depth <- 0
       current_node <- leaf_nodes[i]
-
       # Traverse upwards until the root node (nodeID == 0)
       while (df$nodeID[current_node] != 0) {
         # Find the parent node of the current node
@@ -28,12 +27,10 @@ calculate_depth_per_tree <- function(df) {
         if (length(parent_node) == 0) {
           stop("Error: No parent node found for nodeID ", df$nodeID[current_node])
         }
-
         # Update the current node to the parent node and increase the distance
         current_node <- parent_node
         depth <- depth + 1
       }
-
       # Store the calculated distance and nodeID in the matrix
       leaf_depth[i, "nodeID"] <- df$nodeID[leaf_nodes[i]]
       leaf_depth[i, "depth"] <- depth
@@ -72,49 +69,39 @@ calculate_leaf_to_root_depth <- function(model) {
 #' @param obs_depth A dataframe with columns: 'nodeID', 'treeID'.
 #' @return A dataframe with two columns: 'feature', 'count'.
 #' @examples
-#' 
+#'
 #' result <- isoForest(iris,feature_contribution = TRUE)
 #' head(result$feature_contributions)
 calculate_feature_counts <- function(model, obs_depth) {
-    
-    # Get all feature names
-    feature_names <- model$forest$independent.variable.names
-    
-    # Initialize feature counts
-    total_feature_counts <- setNames(rep(0, length(feature_names)), feature_names)
-    
-    # Process each row in the result dataframe
-    for (i in 1:nrow(obs_depth)) {
-        nodeID <- obs_depth$nodeID[i]
-        treeID <- obs_depth$treeID[i]
-        
-        # Get information for the current tree
-        current_tree <- ranger::treeInfo(model, treeID)
-        
-        # Traverse from leaf node to root node (including root)
-        current_node <- nodeID
-        while (TRUE) {
-            # Get information for the current node
-            node_info <- current_tree[current_tree$nodeID == current_node, ]
-            
-            # Count the feature used (including root node)
-            if (!is.na(node_info$splitvarName) && node_info$splitvarName != "") {
-                total_feature_counts[node_info$splitvarName] <- total_feature_counts[node_info$splitvarName] + 1
-            }
-            
-            # Exit loop if root node is reached
-            if (current_node == 0) {
-                break
-            }
-            
-            # Find the parent node
-            parent_node <- current_tree$nodeID[current_tree$leftChild == current_node | current_tree$rightChild == current_node]
-            
-            # Move to the parent node
-            current_node <- parent_node[!is.na(parent_node)]
-        }
+  # Get all feature names
+  feature_names <- model$forest$independent.variable.names
+  # Initialize feature counts as a matrix with one row and number of columns equal to feature names
+  total_feature_counts <- matrix(0, nrow = 1, ncol = length(feature_names))
+  colnames(total_feature_counts) <- feature_names
+  for (i in 1:nrow(obs_depth)) {
+    nodeID <- obs_depth$nodeID[i]
+    treeID <- obs_depth$treeID[i]
+    # Get information for the current tree
+    current_tree <- ranger::treeInfo(model, treeID)
+    # Traverse from leaf node to root node (including root)
+    current_node <- nodeID
+    while (TRUE) {
+      # Get information for the current node
+      node_info <- current_tree[current_tree$nodeID == current_node, ]
+      # Count the feature used (including root node)
+      if (!is.na(node_info$splitvarName) && node_info$splitvarName!= "") {
+        # Increment the count in the matrix
+        total_feature_counts[1, which(feature_names == node_info$splitvarName)] <- total_feature_counts[1, which(feature_names == node_info$splitvarName)] + 1
+      }
+      # Exit loop if root node is reached
+      if (current_node == 0) {
+        break
+      }
+      # Find the parent node
+      parent_node <- current_tree$nodeID[current_tree$leftChild == current_node | current_tree$rightChild == current_node]
+      # Move to the parent node
+      current_node <- parent_node[!is.na(parent_node)]
     }
-    
-    # Return the feature count results
-    return(total_feature_counts)
+  }
+  return(total_feature_counts)
 }

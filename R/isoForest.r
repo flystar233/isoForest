@@ -8,7 +8,7 @@
 #' @param mtry The number of variables to consider when splitting each node. Default is NULL, which means that the number of variables is set to the square root of the number of variables in the data.
 #' @param num.threads The number of threads to use for parallel processing. Default is NULL, which means that all available threads are used.
 #' @param seed The seed for random number generation. Default is NULL, which means that the current time is used as the seed.
-#' @param feature_contribution A logical value indicating whether to calculate feature contributions. Default is FALSE.
+#' @param is_feature_contribution A logical value indicating whether to calculate feature contributions. Default is FALSE.
 #' @param ... Additional arguments to be passed to the ranger function.
 #' @return A list containing the anomaly scores for each data point. The anomaly scores are calculated as the average path length from the data point to the root of the tree.
 #' @examples
@@ -27,7 +27,7 @@ isoForest <- function(data,
                       mtry = NULL,
                       num.threads = NULL,
                       seed = NULL,
-                      feature_contribution = FALSE,
+                      is_feature_contribution = FALSE,
                       ...) {
   # Initial check
   if (num_trees <= 0) {
@@ -81,9 +81,12 @@ isoForest <- function(data,
   tnm$treeID <- as.integer(tnm$treeID)
   tnm$nodeID <- as.integer(tnm$nodeID)
   obs_depth <- dplyr::inner_join(terminal_nodes_depth, tnm, by = c("treeID", "nodeID"))
-  if(feature_contribution){
+  if(is_feature_contribution){
     split_data <- split(obs_depth, obs_depth$id)
-    feature_contributions <- lapply(split_data, function(data) calculate_feature_counts(model, data))
+    feature_contributions_sum <- lapply(split_data, function(data) calculate_feature_counts(model, data))
+    feature_contributions_sum <- do.call(rbind, feature_contributions_sum) |> as.data.frame()
+    row_sums <- rowSums(feature_contributions_sum)
+    feature_contributions_percent <- as.data.frame(sapply(feature_contributions_sum, function(x) x / row_sums))
   }
   scores <- obs_depth |>
     dplyr::group_by(id) |>
@@ -98,7 +101,7 @@ isoForest <- function(data,
     sample_size = sample_size,
     max_depth = max_depth,
     seed = seed,
-    feature_contributions = feature_contributions
+    feature_contributions_percent = feature_contributions_percent
   )
   class(result) <- c("isoForest")
   return(result)
