@@ -70,7 +70,7 @@ calculate_leaf_to_root_depth <- function(model) {
 #' @return A dataframe with two columns: 'feature', 'count'.
 #' @examples
 #'
-#' result <- isoForest(iris,feature_contribution = TRUE)
+#' result <- isoForest(iris, feature_contribution = TRUE)
 #' head(result$feature_contributions)
 calculate_feature_counts <- function(model, obs_depth) {
   # Get all feature names
@@ -78,7 +78,7 @@ calculate_feature_counts <- function(model, obs_depth) {
   # Initialize feature counts as a matrix with one row and number of columns equal to feature names
   total_feature_counts <- matrix(0, nrow = 1, ncol = length(feature_names))
   colnames(total_feature_counts) <- feature_names
-  for (i in 1:nrow(obs_depth)) {
+  for (i in seq_len(nrow(obs_depth))) {
     nodeID <- obs_depth$nodeID[i]
     treeID <- obs_depth$treeID[i]
     # Get information for the current tree
@@ -89,7 +89,7 @@ calculate_feature_counts <- function(model, obs_depth) {
       # Get information for the current node
       node_info <- current_tree[current_tree$nodeID == current_node, ]
       # Count the feature used (including root node)
-      if (!is.na(node_info$splitvarName) && node_info$splitvarName!= "") {
+      if (!is.na(node_info$splitvarName) && node_info$splitvarName != "") {
         # Increment the count in the matrix
         total_feature_counts[1, which(feature_names == node_info$splitvarName)] <- total_feature_counts[1, which(feature_names == node_info$splitvarName)] + 1
       }

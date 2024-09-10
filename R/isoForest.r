@@ -28,6 +28,7 @@ isoForest <- function(data,
                       num.threads = NULL,
                       seed = NULL,
                       is_feature_contribution = FALSE,
+                      contamination = NULL,
                       ...) {
   # Initial check
   if (num_trees <= 0) {
@@ -50,7 +51,7 @@ isoForest <- function(data,
   nr <- nrow(data)
   sample_fraction <- sample_size / nr
   fake_feature <- sample.int(nrow(data))
-  feature_contributions = NULL
+  feature_contributions_percent <- NULL
 
   model <- ranger::ranger(
     x = data,
@@ -81,19 +82,30 @@ isoForest <- function(data,
   tnm$treeID <- as.integer(tnm$treeID)
   tnm$nodeID <- as.integer(tnm$nodeID)
   obs_depth <- dplyr::inner_join(terminal_nodes_depth, tnm, by = c("treeID", "nodeID"))
-  if(is_feature_contribution){
-    split_data <- split(obs_depth, obs_depth$id)
-    feature_contributions_sum <- lapply(split_data, function(data) calculate_feature_counts(model, data))
-    feature_contributions_sum <- do.call(rbind, feature_contributions_sum) |> as.data.frame()
-    row_sums <- rowSums(feature_contributions_sum)
-    feature_contributions_percent <- as.data.frame(sapply(feature_contributions_sum, function(x) x / row_sums))
-  }
   scores <- obs_depth |>
     dplyr::group_by(id) |>
     dplyr::summarise(
       average_depth = mean(depth),
       anomaly_score = computeAnomaly(average_depth, sample_size)
     )
+  if (is_feature_contribution) {
+    if (!is.null(contamination)){
+      n_samples <- nrow(scores) * contamination
+    }else{
+      n_samples <- nrow(scores) * 0.05
+      warning("There is no contamination ratio to calculate feature contribution,defaulted to 0.05")
+    }
+    ids <- scores[order(scores$anomaly_score, decreasing = TRUE), ][1:n_samples, "id"]
+    ids <- sort(as.vector(ids)$id)
+    obs_depth  <- obs_depth[obs_depth$id %in% ids, ]
+    split_data <- split(obs_depth, obs_depth$id)
+    feature_contributions_sum <- lapply(split_data, function(data) calculate_feature_counts(model, data))
+    feature_contributions_sum <- do.call(rbind, feature_contributions_sum) |> as.data.frame()
+    row_sums <- rowSums(feature_contributions_sum)
+    feature_contributions_percent <- as.data.frame(sapply(feature_contributions_sum, function(x) x / row_sums))
+    feature_contributions_percent$id <- ids
+
+  }
 
   result <- list(
     model = model,

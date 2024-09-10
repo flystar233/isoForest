@@ -57,7 +57,6 @@ anomaly_plot <- function(object,
       ggplot2::ylab(column_names[2]) +
       ggplot2::labs(fill = "score") +
       ggplot2::theme_bw()
-    #+ xlim(x_min, x_max) + ylim(y_min, y_max)
   } else {
     stop("plot_type must be either 'scatter' or 'heatmap'")
   }
