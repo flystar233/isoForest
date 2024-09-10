@@ -9,6 +9,7 @@
 #' @param num.threads The number of threads to use for parallel processing. Default is NULL, which means that all available threads are used.
 #' @param seed The seed for random number generation. Default is NULL, which means that the current time is used as the seed.
 #' @param is_feature_contribution A logical value indicating whether to calculate feature contributions. Default is FALSE.
+#' @param contamination The proportion of samples that need to be calculated for feature contributions. Default is NULL.
 #' @param ... Additional arguments to be passed to the ranger function.
 #' @return A list containing the anomaly scores for each data point. The anomaly scores are calculated as the average path length from the data point to the root of the tree.
 #' @examples

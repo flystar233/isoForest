@@ -12,6 +12,8 @@ isoForest(
   mtry = NULL,
   num.threads = NULL,
   seed = NULL,
+  is_feature_contribution = FALSE,
+  contamination = NULL,
   ...
 )
 }
@@ -29,6 +31,10 @@ isoForest(
 \item{num.threads}{The number of threads to use for parallel processing. Default is NULL, which means that all available threads are used.}
 
 \item{seed}{The seed for random number generation. Default is NULL, which means that the current time is used as the seed.}
+
+\item{is_feature_contribution}{A logical value indicating whether to calculate feature contributions. Default is FALSE.}
+
+\item{contamination}{The proportion of samples that need to be calculated for feature contributions. Default is NULL.}
 
 \item{...}{Additional arguments to be passed to the ranger function.}
 }

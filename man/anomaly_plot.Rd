@@ -32,6 +32,6 @@ data("iris")
 # Fit the anomaly detection model
 model <- isoForest(iris[1:2])
 # Plot the anomaly scores
-anomaly_plot(model, iris[1:2],plot_type="scatter")
-anomaly_plot(model, iris[1:2],plot_type="heatmap")
+anomaly_plot(model, iris[1:2], plot_type = "scatter")
+anomaly_plot(model, iris[1:2], plot_type = "heatmap")
 }
