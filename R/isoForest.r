@@ -8,8 +8,6 @@
 #' @param mtry The number of variables to consider when splitting each node. Default is NULL, which means that the number of variables is set to the square root of the number of variables in the data.
 #' @param num.threads The number of threads to use for parallel processing. Default is NULL, which means that all available threads are used.
 #' @param seed The seed for random number generation. Default is NULL, which means that the current time is used as the seed.
-#' @param is_feature_contribution A logical value indicating whether to calculate feature contributions. Default is FALSE.
-#' @param contamination The proportion of samples that need to be calculated for feature contributions. Default is NULL.
 #' @param ... Additional arguments to be passed to the ranger function.
 #' @return A list containing the anomaly scores for each data point. The anomaly scores are calculated as the average path length from the data point to the root of the tree.
 #' @examples
@@ -28,8 +26,6 @@ isoForest <- function(data,
                       mtry = NULL,
                       num.threads = NULL,
                       seed = NULL,
-                      is_feature_contribution = FALSE,
-                      contamination = NULL,
                       ...) {
   # Initial check
   if (num_trees <= 0) {
@@ -52,8 +48,6 @@ isoForest <- function(data,
   nr <- nrow(data)
   sample_fraction <- sample_size / nr
   fake_feature <- sample.int(nrow(data))
-  feature_contributions_percent <- NULL
-
   model <- ranger::ranger(
     x = data,
     y = fake_feature,
@@ -89,32 +83,13 @@ isoForest <- function(data,
       average_depth = mean(depth),
       anomaly_score = computeAnomaly(average_depth, sample_size)
     )
-  if (is_feature_contribution) {
-    if (!is.null(contamination)){
-      n_samples <- nrow(scores) * contamination
-    }else{
-      n_samples <- nrow(scores) * 0.05
-      warning("There is no contamination ratio to calculate feature contribution,defaulted to 0.05")
-    }
-    ids <- scores[order(scores$anomaly_score, decreasing = TRUE), ][1:n_samples, "id"]
-    ids <- sort(as.vector(ids)$id)
-    obs_depth  <- obs_depth[obs_depth$id %in% ids, ]
-    split_data <- split(obs_depth, obs_depth$id)
-    feature_contributions_sum <- lapply(split_data, function(data) calculate_feature_counts(model, data))
-    feature_contributions_sum <- do.call(rbind, feature_contributions_sum) |> as.data.frame()
-    row_sums <- rowSums(feature_contributions_sum)
-    feature_contributions_percent <- as.data.frame(sapply(feature_contributions_sum, function(x) x / row_sums))
-    feature_contributions_percent$id <- ids
-
-  }
 
   result <- list(
     model = model,
     scores = scores,
     sample_size = sample_size,
     max_depth = max_depth,
-    seed = seed,
-    feature_contributions_percent = feature_contributions_percent
+    seed = seed
   )
   class(result) <- c("isoForest")
   return(result)
