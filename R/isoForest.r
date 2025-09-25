@@ -27,18 +27,33 @@ isoForest <- function(data,
                       num.threads = NULL,
                       seed = NULL,
                       ...) {
-  # Initial check
-  if (num_trees <= 0) {
-    stop("The number of trees is at least 1")
+  # Check data validity
+  if (is.null(data) || nrow(data) == 0) {
+    stop("Data cannot be NULL or empty")
   }
-  if (sample_size <= 0) {
-    stop("The sample size is at least 1")
-  }
-  if (max_depth <= 0) {
-    stop("The max depth is at least 1")
+  if (!any(sapply(data, is.numeric))) {
+    stop("Data must contain at least one numeric column")
   }
   if (!is.data.frame(data)) {
     data <- as.data.frame(data)
+  }
+  
+  # Check key parameters
+  if (!is.numeric(num_trees) || num_trees <= 0 || num_trees != as.integer(num_trees)) {
+    stop("num_trees must be a positive integer")
+  }
+  if (!is.numeric(sample_size) || sample_size <= 0) {
+    stop("sample_size must be a positive number")
+  }
+  if (sample_size > nrow(data)) {
+    warning("sample_size is larger than data size, using full data size")
+    sample_size <- nrow(data)
+  }
+  if (!is.numeric(max_depth) || max_depth <= 0 || max_depth != as.integer(max_depth)) {
+    stop("max_depth must be a positive integer")
+  }
+  if (!is.null(mtry) && (mtry < 1 || mtry > ncol(data))) {
+    stop("mtry must be between 1 and number of columns (", ncol(data), ")")
   }
   if (is.null(seed)) {
     set.seed(as.numeric(Sys.time()))
@@ -64,19 +79,26 @@ isoForest <- function(data,
     ...
   )
   terminal_nodes_depth <- calculate_leaf_to_root_depth(model)
-  tnm <- stats::predict(model,
+  terminal_node_matrix <- stats::predict(model,
     data,
     type = "terminalNodes",
     num.threads = num.threads,
     ...
   )[["predictions"]]
-  tnm <- as.data.frame(tnm)
-  colnames(tnm) <- as.character(seq_len(ncol(tnm)))
-  tnm$id <- seq_len(nrow(tnm))
-  tnm <- tidyr::pivot_longer(tnm, cols = -id, names_to = "treeID", values_to = "nodeID")
-  tnm$treeID <- as.integer(tnm$treeID)
-  tnm$nodeID <- as.integer(tnm$nodeID)
-  obs_depth <- dplyr::inner_join(terminal_nodes_depth, tnm, by = c("treeID", "nodeID"))
+  n_obs <- nrow(terminal_node_matrix)
+  n_trees <- ncol(terminal_node_matrix)
+  
+  obs_ids <- rep(seq_len(n_obs), n_trees)
+  tree_ids <- rep(seq_len(n_trees), each = n_obs)
+  node_ids <- as.vector(terminal_node_matrix)
+  
+  terminal_nodes_long <- data.frame(
+    id = obs_ids,
+    treeID = tree_ids,
+    nodeID = node_ids
+  )
+  
+  obs_depth <- dplyr::inner_join(terminal_nodes_depth, terminal_nodes_long, by = c("treeID", "nodeID"))
   scores <- obs_depth |>
     dplyr::group_by(id) |>
     dplyr::summarise(
