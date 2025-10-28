@@ -7,7 +7,9 @@
 #' @param data The original training data
 #' @param method Method for calculating contributions: "path" (default) or "permutation"
 #' @param contamination Contamination rate for identifying anomalies (default 0.05)
-#' @param n_permutations Number of permutations for permutation importance (default 30)
+#' @param n_permutations Number of permutations for permutation importance (default 15).
+#'   Lower values (10-15) are usually sufficient and much faster. Values above 20 
+#'   show diminishing returns.
 #' @param max_trees Maximum number of trees to analyze for path method (default 50)
 #' @return A list containing feature contributions for each analyzed sample
 #' @examples
@@ -18,16 +20,17 @@
 #' contributions <- feature_contribution(model, data = iris[1:4])
 #' print(contributions)
 #' 
-#' # Analyze specific samples with permutation method
+#' # Analyze specific samples with permutation method (fast)
 #' contributions <- feature_contribution(model, sample_ids = c(1, 50), 
-#'                                     data = iris[1:4], method = "permutation")
+#'                                     data = iris[1:4], method = "permutation",
+#'                                     n_permutations = 10)  # 10-15 recommended
 #' @export
 feature_contribution <- function(object, 
                                 sample_ids = NULL,
                                 data,
                                 method = "path",
                                 contamination = 0.05,
-                                n_permutations = 30,
+                                n_permutations = 15,
                                 max_trees = 50) {
   
   # Combined validation
@@ -134,29 +137,68 @@ calculate_path_contributions_batch <- function(object, sample_ids, data, feature
   return(results)
 }
 
-#' Batch calculate permutation importance (optimized)
+#' Batch calculate permutation importance (highly optimized)
 calculate_permutation_contributions_batch <- function(object, sample_ids, data, feature_names, n_permutations) {
   
   results <- list()
+  n_samples <- length(sample_ids)
+  n_features <- length(feature_names)
+  
+  # Progress indicator for long computations
+  if (n_samples > 5) {
+    cat("Calculating permutation importance for", n_samples, "samples",
+        "with", n_permutations, "permutations...\n")
+  }
   
   for (i in seq_along(sample_ids)) {
     id <- sample_ids[i]
     original_score <- object$scores$anomaly_score[id]
     importance_scores <- setNames(rep(0, length(feature_names)), feature_names)
     
-    # Create base permuted data once
+    # Progress indicator
+    if (n_samples > 5 && i %% 5 == 0) {
+      cat("  Progress:", i, "/", n_samples, "\n")
+    }
+    
+    # Create base sample once
     sample_row <- data[id, , drop = FALSE]
     
-    for (feature in feature_names) {
-      if (!feature %in% colnames(data)) next
+    # **Optimization 1**: Batch all permutations for all features together
+    # Instead of calling predict n_features * n_permutations times,
+    # we create one large matrix and call predict once
+    
+    all_permuted_data <- vector("list", n_features)
+    
+    for (j in seq_along(feature_names)) {
+      feature <- feature_names[j]
+      if (!feature %in% colnames(data)) {
+        all_permuted_data[[j]] <- NULL
+        next
+      }
       
-      # Efficient permutation without full data copying
+      # Create permuted data for this feature
       permuted_data <- sample_row[rep(1, n_permutations), , drop = FALSE]
       permuted_data[, feature] <- sample(data[[feature]], n_permutations, replace = TRUE)
+      all_permuted_data[[j]] <- permuted_data
+    }
+    
+    # **Optimization 2**: Combine all permutations and predict once
+    all_permuted_combined <- do.call(rbind, all_permuted_data[!sapply(all_permuted_data, is.null)])
+    
+    if (nrow(all_permuted_combined) > 0) {
+      # Single predict call for all permutations
+      all_scores <- predict(object, all_permuted_combined)$anomaly_score
       
-      # Calculate importance
-      permuted_scores <- predict(object, permuted_data)$anomaly_score
-      importance_scores[feature] <- abs(original_score - mean(permuted_scores))
+      # Split scores back to each feature
+      idx <- 1
+      for (j in seq_along(feature_names)) {
+        feature <- feature_names[j]
+        if (!is.null(all_permuted_data[[j]])) {
+          permuted_scores <- all_scores[idx:(idx + n_permutations - 1)]
+          importance_scores[feature] <- abs(original_score - mean(permuted_scores))
+          idx <- idx + n_permutations
+        }
+      }
     }
     
     # Normalize
@@ -164,7 +206,7 @@ calculate_permutation_contributions_batch <- function(object, sample_ids, data, 
     if (total_importance > 0) {
       importance_scores <- importance_scores / total_importance
     } else {
-      importance_scores[] <- 1 / length(feature_names)  # Equal weights
+      importance_scores[] <- 1 / length(feature_names)
     }
     
     results[[paste0("sample_", id)]] <- list(
@@ -172,6 +214,10 @@ calculate_permutation_contributions_batch <- function(object, sample_ids, data, 
       score = original_score,
       contributions = importance_scores
     )
+  }
+  
+  if (n_samples > 5) {
+    cat("  Completed!\n")
   }
   
   return(results)
