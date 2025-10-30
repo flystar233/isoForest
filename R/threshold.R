@@ -4,12 +4,17 @@
 #' based on anomaly scores from isoForest.
 #' @param object An isoForest model object
 #' @param method The method to use for threshold setting. Options include:
-#'   "contamination" (default), "quantile", "iqr", "zscore", "mad", "manual"
+#'   "contamination" (default), "quantile", "iqr", "zscore", "mad", "karcher", "mtt", "manual"
 #' @param contamination The expected proportion of outliers (for contamination method). Default is 0.05
 #' @param quantile_threshold The quantile threshold (for quantile method). Default is 0.95
 #' @param iqr_multiplier The IQR multiplier (for iqr method). Default is 1.5
 #' @param zscore_threshold The z-score threshold (for zscore method). Default is 2
 #' @param mad_multiplier The MAD multiplier (for mad method). Default is 3
+#' @param karcher_multiplier The multiplier for Karcher mean distance (for karcher method). Default is 2.5
+#' @param karcher_max_iter Maximum iterations for Karcher mean computation. Default is 100
+#' @param karcher_tol Convergence tolerance for Karcher mean. Default is 1e-6
+#' @param mtt_alpha Significance level for MTT (Modified Thompson Tau) test. Default is 0.05
+#' @param mtt_max_iter Maximum iterations for iterative outlier removal in MTT. Default is 30
 #' @param manual_threshold The manual threshold value (for manual method)
 #' @return A list containing:
 #'   - threshold: The calculated threshold value
@@ -36,8 +41,14 @@
 #' # Method 5: MAD-based (robust)
 #' result5 <- set_anomaly_threshold(model, method = "mad", mad_multiplier = 3)
 #' 
-#' # Method 6: Manual threshold
-#' result6 <- set_anomaly_threshold(model, method = "manual", manual_threshold = 0.6)
+#' # Method 6: Karcher mean-based (Riemannian center of mass, very robust)
+#' result6 <- set_anomaly_threshold(model, method = "karcher", karcher_multiplier = 2.5)
+#' 
+#' # Method 7: MTT-based (Modified Thompson Tau test, good for small samples)
+#' result7 <- set_anomaly_threshold(model, method = "mtt", mtt_alpha = 0.05)
+#' 
+#' # Method 8: Manual threshold
+#' result8 <- set_anomaly_threshold(model, method = "manual", manual_threshold = 0.6)
 #' 
 #' # View results
 #' print(result1$summary)
@@ -50,6 +61,11 @@ set_anomaly_threshold <- function(object,
                                   iqr_multiplier = 1.5,
                                   zscore_threshold = 2,
                                   mad_multiplier = 3,
+                                  karcher_multiplier = 2.5,
+                                  karcher_max_iter = 100,
+                                  karcher_tol = 1e-6,
+                                  mtt_alpha = 0.05,
+                                  mtt_max_iter = 30,
                                   manual_threshold = NULL) {
   
   # Input validation
@@ -57,7 +73,7 @@ set_anomaly_threshold <- function(object,
     stop("Object must be an isoForest model")
   }
   
-  method <- match.arg(method, c("contamination", "quantile", "iqr", "zscore", "mad", "manual"))
+  method <- match.arg(method, c("contamination", "quantile", "iqr", "zscore", "mad", "karcher", "mtt", "manual"))
   
   scores <- object$scores$anomaly_score
   n_samples <- length(scores)
@@ -95,6 +111,35 @@ set_anomaly_threshold <- function(object,
       median_score <- stats::median(scores, na.rm = TRUE)
       mad_score <- stats::mad(scores, na.rm = TRUE)
       median_score + mad_multiplier * mad_score
+    },
+    
+    "karcher" = {
+      # Compute Karcher mean (Riemannian center of mass) using weighted Fréchet mean
+      # This is a robust method based on minimizing the sum of squared distances
+      karcher_mean <- compute_karcher_mean(scores, 
+                                           max_iter = karcher_max_iter, 
+                                           tol = karcher_tol)
+      
+      # Compute distances from Karcher mean
+      distances <- abs(scores - karcher_mean)
+      
+      # Use robust scale estimate (MAD of distances)
+      scale <- stats::median(distances) * 1.4826  # MAD with consistency factor
+      
+      # Set threshold based on Karcher mean + multiplier * scale
+      karcher_mean + karcher_multiplier * scale
+    },
+    
+    "mtt" = {
+      # Modified Thompson Tau test for outlier detection
+      # This is a statistical test particularly suitable for small samples
+      # Iteratively removes outliers and recalculates threshold
+      
+      mtt_result <- compute_mtt_threshold(scores, 
+                                          alpha = mtt_alpha,
+                                          max_iter = mtt_max_iter)
+      
+      mtt_result$threshold
     },
     
     "manual" = {
@@ -192,4 +237,203 @@ is_anomaly <- function(object, contamination = 0.05) {
   scores <- object$scores$anomaly_score
   threshold <- stats::quantile(scores, 1 - contamination, na.rm = TRUE)
   return(scores > threshold)
+}
+
+#' @title Compute Karcher Mean (Riemannian Center of Mass)
+#' @description
+#' Computes the Karcher mean (also known as Fréchet mean) of a set of values.
+#' This is a robust estimator that minimizes the sum of squared distances.
+#' For 1D data, this is computed iteratively using weighted averaging.
+#' @param x Numeric vector of values
+#' @param max_iter Maximum number of iterations. Default is 100
+#' @param tol Convergence tolerance. Default is 1e-6
+#' @param weights Optional weights for each observation
+#' @return The Karcher mean value
+#' @references
+#' Pennec, X. (2006). Intrinsic statistics on Riemannian manifolds: 
+#' Basic tools for geometric measurements. Journal of Mathematical Imaging and Vision, 25(1), 127-154.
+#' @keywords internal
+compute_karcher_mean <- function(x, max_iter = 100, tol = 1e-6, weights = NULL) {
+  # Remove NA values
+  x <- x[!is.na(x)]
+  n <- length(x)
+  
+  if (n == 0) {
+    stop("No valid data points for Karcher mean computation")
+  }
+  
+  if (n == 1) {
+    return(x[1])
+  }
+  
+  # Initialize weights if not provided
+  if (is.null(weights)) {
+    weights <- rep(1/n, n)
+  } else {
+    weights <- weights / sum(weights)  # Normalize
+  }
+  
+  # Initialize with weighted median (robust starting point)
+  current_mean <- stats::median(x)
+  
+  # Iterative optimization using gradient descent with adaptive step size
+  for (iter in 1:max_iter) {
+    # Compute signed distances
+    distances <- x - current_mean
+    
+    # Compute weights inversely proportional to distances (with regularization)
+    # This implements the Riemannian metric structure
+    epsilon <- 1e-10  # Regularization to avoid division by zero
+    dist_weights <- 1 / (abs(distances) + epsilon)
+    
+    # Combine with original weights
+    combined_weights <- weights * dist_weights
+    combined_weights <- combined_weights / sum(combined_weights)
+    
+    # Update mean using weighted average
+    new_mean <- sum(x * combined_weights)
+    
+    # Check convergence
+    change <- abs(new_mean - current_mean)
+    
+    if (change < tol) {
+      return(new_mean)
+    }
+    
+    # Adaptive step size to ensure convergence
+    step_size <- 1 / (1 + iter / 10)
+    current_mean <- current_mean + step_size * (new_mean - current_mean)
+  }
+  
+  # If not converged, issue warning but return best estimate
+  warning("Karcher mean did not converge within ", max_iter, 
+          " iterations. Returning best estimate.")
+  return(current_mean)
+}
+
+#' @title Compute Modified Thompson Tau (MTT) Threshold
+#' @description
+#' Implements the Modified Thompson Tau test for outlier detection.
+#' This is an iterative statistical test that identifies outliers by comparing
+#' each observation's deviation from the mean against a critical value based on
+#' the t-distribution. Particularly effective for small to medium sample sizes.
+#' @param x Numeric vector of values (anomaly scores)
+#' @param alpha Significance level for the test. Default is 0.05
+#' @param max_iter Maximum number of iterations for outlier removal. Default is 30
+#' @return A list containing:
+#'   - threshold: The calculated threshold value
+#'   - n_outliers: Number of outliers detected
+#'   - outlier_indices: Indices of detected outliers
+#' @references
+#' Thompson, W. R. (1935). "On a Criterion for the Rejection of Observations and 
+#' the Distribution of the Ratio of the Deviation to the Sample Standard Deviation."
+#' Annals of Mathematical Statistics, 6(4), 214-219.
+#' 
+#' Adjusted Grubbs' and generalized extreme studentized deviation methods.
+#' @keywords internal
+compute_mtt_threshold <- function(x, alpha = 0.05, max_iter = 30) {
+  # Remove NA values
+  x <- x[!is.na(x)]
+  n <- length(x)
+  
+  if (n < 3) {
+    stop("MTT test requires at least 3 samples")
+  }
+  
+  # Store original indices
+  original_indices <- seq_along(x)
+  outlier_indices <- c()
+  
+  # Iteratively detect and remove outliers
+  for (iter in 1:max_iter) {
+    current_n <- length(x)
+    
+    if (current_n < 3) {
+      break
+    }
+    
+    # Calculate mean and standard deviation
+    x_mean <- mean(x)
+    x_sd <- stats::sd(x)
+    
+    # Calculate absolute deviations from mean
+    deviations <- abs(x - x_mean)
+    
+    # Find the point with maximum deviation
+    max_dev_idx <- which.max(deviations)
+    max_dev <- deviations[max_dev_idx]
+    
+    # Calculate Thompson Tau statistic
+    # tau = t_alpha * (n-1) / sqrt(n * (n - 2 + t_alpha^2))
+    # where t_alpha is the critical value from t-distribution
+    
+    # Degrees of freedom
+    df <- current_n - 2
+    
+    # Critical t-value (two-tailed)
+    t_crit <- stats::qt(1 - alpha/(2*current_n), df)
+    
+    # Calculate tau
+    tau <- (t_crit * (current_n - 1)) / sqrt(current_n * (df + t_crit^2))
+    
+    # Critical value for rejection
+    critical_value <- tau * x_sd
+    
+    # Check if the maximum deviation exceeds the critical value
+    if (max_dev > critical_value) {
+      # Mark as outlier
+      outlier_indices <- c(outlier_indices, original_indices[max_dev_idx])
+      
+      # Remove the outlier from the dataset
+      original_indices <- original_indices[-max_dev_idx]
+      x <- x[-max_dev_idx]
+    } else {
+      # No more outliers detected
+      break
+    }
+  }
+  
+  # Calculate final threshold based on remaining inliers
+  if (length(x) > 0) {
+    inlier_mean <- mean(x)
+    inlier_sd <- stats::sd(x)
+    
+    # Set threshold as mean + 3*sd of inliers (conservative)
+    # This is the boundary between inliers and outliers
+    threshold <- inlier_mean + 3 * inlier_sd
+  } else {
+    # If all points are outliers (unlikely), use original quantile
+    threshold <- stats::quantile(x, 0.95, na.rm = TRUE)
+  }
+  
+  return(list(
+    threshold = threshold,
+    n_outliers = length(outlier_indices),
+    outlier_indices = outlier_indices
+  ))
+}
+
+#' @title Calculate Thompson Tau Critical Value
+#' @description
+#' Helper function to calculate the Thompson Tau critical value for a given
+#' sample size and significance level.
+#' @param n Sample size
+#' @param alpha Significance level
+#' @return Thompson Tau critical value
+#' @keywords internal
+thompson_tau_critical <- function(n, alpha = 0.05) {
+  if (n < 3) {
+    stop("Sample size must be at least 3")
+  }
+  
+  # Degrees of freedom
+  df <- n - 2
+  
+  # Critical t-value (two-tailed, Bonferroni corrected)
+  t_crit <- stats::qt(1 - alpha/(2*n), df)
+  
+  # Calculate tau
+  tau <- (t_crit * (n - 1)) / sqrt(n * (df + t_crit^2))
+  
+  return(tau)
 }

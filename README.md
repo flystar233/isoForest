@@ -78,9 +78,77 @@ The function returns contribution percentages showing how much each feature cont
 #   Sepal.Width: 7.3%
 ```
 
+## Anomaly Threshold Setting
+
+The package provides multiple methods for setting anomaly detection thresholds. Instead of manually choosing a threshold, you can use statistical and geometric methods to automatically determine the optimal threshold.
+
+### Available Methods
+
+| Method | Description | Best For |
+|--------|-------------|----------|
+| **contamination** | Set threshold based on expected outlier proportion | Known anomaly rate |
+| **quantile** | Use a specific quantile as threshold | Percentile-based detection |
+| **iqr** | Interquartile range (Q3 + 1.5×IQR) | Box-plot style analysis |
+| **zscore** | Z-score based (mean + 2×sd) | Normal distributions |
+| **mad** | Median Absolute Deviation | Robust, symmetric distributions |
+| **karcher** | Karcher mean (Riemannian center) | Heavy tails, extreme outliers |
+| **mtt** | Modified Thompson Tau test | Small to medium samples |
+| **manual** | User-specified threshold | Custom requirements |
+
+### Quick Start
+
+```r
+# Train model
+library(isoForest)
+model <- isoForest(iris[1:4])
+
+# Method 1: Contamination-based (most common)
+result <- set_anomaly_threshold(model, method = "contamination", contamination = 0.05)
+print(result)
+
+# Get anomalous samples
+anomalies <- iris[result$predictions$is_anomaly, ]
+head(anomalies)
+```
+
+### Robust Methods
+
+For data with extreme outliers or heavy-tailed distributions:
+
+```r
+# Karcher mean method (highly robust)
+result_karcher <- set_anomaly_threshold(model, method = "karcher", karcher_multiplier = 2.5)
+
+# MAD method (robust and fast)
+result_mad <- set_anomaly_threshold(model, method = "mad", mad_multiplier = 3)
+
+# Compare results
+cat("Karcher detected:", sum(result_karcher$predictions$is_anomaly), "anomalies\n")
+cat("MAD detected:", sum(result_mad$predictions$is_anomaly), "anomalies\n")
+```
+
+### Statistical Testing
+
+For small to medium sample sizes with statistical guarantees:
+
+```r
+# Modified Thompson Tau test
+result_mtt <- set_anomaly_threshold(
+  model, 
+  method = "mtt",
+  mtt_alpha = 0.05,      # Significance level
+  mtt_max_iter = 30      # Maximum iterations
+)
+
+# Adjust sensitivity
+result_strict <- set_anomaly_threshold(model, method = "mtt", mtt_alpha = 0.01)  # More conservative
+result_loose <- set_anomaly_threshold(model, method = "mtt", mtt_alpha = 0.10)   # More sensitive
+```
+
 ## Visualization
+
 ```r
 result <- isoForest(iris[1:2])
-anomaly_plot(result,iris[1:2],plot_type="heatmap")
+anomaly_plot(result, iris[1:2], plot_type="heatmap")
 ```
 ![](https://github.com/user-attachments/assets/8518b445-1631-4e7b-be30-ddcc3dac10ac)

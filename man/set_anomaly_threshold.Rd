@@ -12,6 +12,11 @@ set_anomaly_threshold(
   iqr_multiplier = 1.5,
   zscore_threshold = 2,
   mad_multiplier = 3,
+  karcher_multiplier = 2.5,
+  karcher_max_iter = 100,
+  karcher_tol = 1e-6,
+  mtt_alpha = 0.05,
+  mtt_max_iter = 30,
   manual_threshold = NULL
 )
 }
@@ -19,7 +24,7 @@ set_anomaly_threshold(
 \item{object}{An isoForest model object}
 
 \item{method}{The method to use for threshold setting. Options include:
-"contamination" (default), "quantile", "iqr", "zscore", "mad", "manual"}
+"contamination" (default), "quantile", "iqr", "zscore", "mad", "karcher", "mtt", "manual"}
 
 \item{contamination}{The expected proportion of outliers (for contamination method). Default is 0.05}
 
@@ -30,6 +35,16 @@ set_anomaly_threshold(
 \item{zscore_threshold}{The z-score threshold (for zscore method). Default is 2}
 
 \item{mad_multiplier}{The MAD multiplier (for mad method). Default is 3}
+
+\item{karcher_multiplier}{The multiplier for Karcher mean distance (for karcher method). Default is 2.5}
+
+\item{karcher_max_iter}{Maximum iterations for Karcher mean computation. Default is 100}
+
+\item{karcher_tol}{Convergence tolerance for Karcher mean. Default is 1e-6}
+
+\item{mtt_alpha}{Significance level for MTT (Modified Thompson Tau) test. Default is 0.05}
+
+\item{mtt_max_iter}{Maximum iterations for iterative outlier removal in MTT. Default is 30}
 
 \item{manual_threshold}{The manual threshold value (for manual method)}
 }
@@ -45,6 +60,33 @@ A list containing:
 \description{
 This function provides various methods to set thresholds for anomaly detection
 based on anomaly scores from isoForest.
+}
+\details{
+Available methods:
+\itemize{
+\item \strong{contamination}: Set threshold based on expected outlier proportion (e.g., top 5\% scores)
+\item \strong{quantile}: Use a specific quantile as threshold
+\item \strong{iqr}: Interquartile range method (Q3 + multiplier * IQR) - classic box-plot approach
+\item \strong{zscore}: Z-score based threshold (mean + multiplier * sd) - assumes normal distribution
+\item \strong{mad}: Median Absolute Deviation (median + multiplier * MAD) - robust method
+\item \strong{karcher}: Karcher mean / Riemannian center of mass - highly robust geometric method, 
+        particularly effective for heavy-tailed distributions and extreme outliers. Uses iterative 
+        optimization to minimize sum of squared distances.
+\item \strong{mtt}: Modified Thompson Tau test - statistical test based on t-distribution, 
+        particularly suitable for small to medium sample sizes (n < 1000). Iteratively removes 
+        outliers with Bonferroni correction.
+\item \strong{manual}: User-specified threshold value
+}
+
+Method selection guidelines:
+\itemize{
+\item For \strong{known contamination rate}: use "contamination"
+\item For \strong{small samples (n < 100)}: use "mtt" or "mad"
+\item For \strong{extreme outliers or heavy tails}: use "karcher" or "mad"
+\item For \strong{normal distributions}: use "zscore"
+\item For \strong{interpretability}: use "iqr"
+\item For \strong{robust analysis}: use "karcher" or "mad"
+}
 }
 \examples{
 # Load data and train model
@@ -66,10 +108,26 @@ result4 <- set_anomaly_threshold(model, method = "zscore", zscore_threshold = 2)
 # Method 5: MAD-based (robust)
 result5 <- set_anomaly_threshold(model, method = "mad", mad_multiplier = 3)
 
-# Method 6: Manual threshold
-result6 <- set_anomaly_threshold(model, method = "manual", manual_threshold = 0.6)
+# Method 6: Karcher mean-based (Riemannian center of mass, very robust)
+result6 <- set_anomaly_threshold(model, method = "karcher", karcher_multiplier = 2.5)
+
+# Method 7: MTT-based (Modified Thompson Tau test, good for small samples)
+result7 <- set_anomaly_threshold(model, method = "mtt", mtt_alpha = 0.05)
+
+# Method 8: Manual threshold
+result8 <- set_anomaly_threshold(model, method = "manual", manual_threshold = 0.6)
 
 # View results
 print(result1$summary)
 head(result1$predictions)
+
+# Compare different methods
+methods <- c("contamination", "mad", "karcher", "mtt")
+results <- lapply(methods, function(m) {
+  set_anomaly_threshold(model, method = m)
+})
+names(results) <- methods
+
+# Show comparison
+sapply(results, function(r) sum(r$predictions$is_anomaly))
 }
