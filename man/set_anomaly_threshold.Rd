@@ -12,7 +12,8 @@ set_anomaly_threshold(
   iqr_multiplier = 1.5,
   zscore_threshold = 2,
   mad_multiplier = 3,
-  karcher_multiplier = 2.5,
+  karcher_multiplier = 3,
+  karcher_method = "complex",
   karcher_max_iter = 100,
   karcher_tol = 1e-6,
   mtt_alpha = 0.05,
@@ -36,7 +37,9 @@ set_anomaly_threshold(
 
 \item{mad_multiplier}{The MAD multiplier (for mad method). Default is 3}
 
-\item{karcher_multiplier}{The multiplier for Karcher mean distance (for karcher method). Default is 2.5}
+\item{karcher_multiplier}{The multiplier for standard deviation (for karcher method). Default is 3}
+
+\item{karcher_method}{Method for Karcher mean computation: "simple" or "complex". Default is "complex"}
 
 \item{karcher_max_iter}{Maximum iterations for Karcher mean computation. Default is 100}
 
@@ -69,9 +72,10 @@ Available methods:
 \item \strong{iqr}: Interquartile range method (Q3 + multiplier * IQR) - classic box-plot approach
 \item \strong{zscore}: Z-score based threshold (mean + multiplier * sd) - assumes normal distribution
 \item \strong{mad}: Median Absolute Deviation (median + multiplier * MAD) - robust method
-\item \strong{karcher}: Karcher mean / Riemannian center of mass - highly robust geometric method, 
-        particularly effective for heavy-tailed distributions and extreme outliers. Uses iterative 
-        optimization to minimize sum of squared distances.
+\item \strong{karcher}: Karcher mean / Frechet mean - geometric method based on Riemannian center of mass, 
+        with optional KDE (kernel density estimation) weighting for complex distributions. 
+        Uses standard deviation as scale measure. Supports two modes: "simple" (direct computation) 
+        and "complex" (KDE-weighted, default).
 \item \strong{mtt}: Modified Thompson Tau test - statistical test based on t-distribution, 
         particularly suitable for small to medium sample sizes (n < 1000). Iteratively removes 
         outliers with Bonferroni correction.
@@ -109,7 +113,7 @@ result4 <- set_anomaly_threshold(model, method = "zscore", zscore_threshold = 2)
 result5 <- set_anomaly_threshold(model, method = "mad", mad_multiplier = 3)
 
 # Method 6: Karcher mean-based (Riemannian center of mass, very robust)
-result6 <- set_anomaly_threshold(model, method = "karcher", karcher_multiplier = 2.5)
+result6 <- set_anomaly_threshold(model, method = "karcher", karcher_multiplier = 3)
 
 # Method 7: MTT-based (Modified Thompson Tau test, good for small samples)
 result7 <- set_anomaly_threshold(model, method = "mtt", mtt_alpha = 0.05)

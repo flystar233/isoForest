@@ -10,42 +10,47 @@ with non-Euclidean structure, heavy-tailed distributions, and extreme outliers.
 }
 
 \section{Theory}{
-The Karcher mean \eqn{\mu_K} is defined as the point that minimizes the sum of 
-squared distances:
+The Karcher mean (Frechet mean) \eqn{\mu_K} is defined as the point that minimizes 
+the sum of squared distances:
 
 \deqn{\mu_K = \arg\min_{\mu} \sum_{i=1}^{n} d^2(x_i, \mu)}
 
 where \eqn{d(x_i, \mu)} is the distance between observation \eqn{x_i} and the 
 candidate mean \eqn{\mu}.
 
-For threshold determination, the method:
+For threshold determination, the method offers two modes:
 \enumerate{
-  \item Computes the Karcher mean of anomaly scores iteratively
-  \item Calculates robust scale using MAD (Median Absolute Deviation) of distances
-  \item Sets threshold as: \eqn{threshold = \mu_K + m \times scale}
+  \item \strong{Complex mode (default)}: Uses KDE (kernel density estimation) 
+        weighting to account for data distribution
+  \item \strong{Simple mode}: Direct computation of weighted arithmetic mean
+  \item Calculates scale using standard deviation (SD) of anomaly scores
+  \item Sets threshold as: \eqn{threshold = \mu_K + m \times SD}
 }
 
-where \eqn{m} is the multiplier parameter (default: 2.5).
+where \eqn{m} is the multiplier parameter (default: 3).
 }
 
 \section{Advantages}{
 \itemize{
-  \item \strong{Robust to extreme outliers}: Unlike mean-based methods, the Karcher 
-        mean is less influenced by extreme values
-  \item \strong{Geometric optimality}: Provides the optimal center in a Riemannian 
-        geometric sense
-  \item \strong{Heavy-tailed distributions}: Works well when data has long tails
-  \item \strong{Adaptive}: The iterative weighting scheme adapts to data structure
-  \item \strong{Theoretical foundation}: Backed by solid mathematical theory from 
-        Riemannian geometry
+  \item \strong{Distribution awareness}: Complex mode uses KDE to weight scores by 
+        their density, providing better handling of non-uniform distributions
+  \item \strong{Geometric optimality}: Provides the optimal center (Frechet mean) in 
+        Euclidean space
+  \item \strong{Flexible computation}: Supports both simple (fast) and complex 
+        (distribution-aware) modes
+  \item \strong{Proven algorithm}: Based on PyOD KARCH implementation with solid 
+        empirical results
+  \item \strong{Theoretical foundation}: Grounded in Riemannian geometry and 
+        Frechet mean theory
 }
 }
 
 \section{Comparison with Other Methods}{
 \tabular{lll}{
   \strong{Method} \tab \strong{Robustness} \tab \strong{Best For} \cr
-  Karcher Mean \tab Very High \tab Heavy tails, extreme outliers \cr
-  MAD \tab High \tab Symmetric distributions \cr
+  Karcher (complex) \tab High \tab Non-uniform distributions, density-aware \cr
+  Karcher (simple) \tab Medium \tab Simple weighted mean approach \cr
+  MAD \tab Very High \tab Robust, symmetric distributions \cr
   IQR \tab Medium-High \tab Box-plot style analysis \cr
   Z-Score \tab Low \tab Normal distributions \cr
   Contamination \tab N/A \tab Known anomaly proportion \cr
@@ -55,10 +60,18 @@ where \eqn{m} is the multiplier parameter (default: 2.5).
 \section{Parameters}{
 \describe{
   \item{karcher_multiplier}{
-    Controls the threshold strictness. Default: 2.5
+    Controls the threshold strictness. Default: 3
     \itemize{
-      \item Lower (1.5-2.0): More sensitive, detects more anomalies
-      \item Higher (3.0-4.0): More conservative, fewer false positives
+      \item Lower (1-2): More sensitive, detects more anomalies
+      \item Higher (3-4): Balanced, standard approach
+      \item Even higher (>4): More conservative, fewer false positives
+    }
+  }
+  \item{karcher_method}{
+    Computation method. Default: "complex"
+    \itemize{
+      \item "complex": Uses KDE weighting for better distribution fitting
+      \item "simple": Direct weighted mean computation (faster)
     }
   }
   \item{karcher_max_iter}{
@@ -79,26 +92,33 @@ where \eqn{m} is the multiplier parameter (default: 2.5).
 }
 
 \section{Algorithm Details}{
-The implementation uses an iterative weighted averaging approach:
+The implementation follows the PyOD KARCH approach:
+
+\strong{Complex Mode (Default):}
 \enumerate{
-  \item Initialize with the median (robust starting point)
-  \item Compute distances from current estimate to all points
-  \item Calculate weights inversely proportional to distances
-  \item Update estimate using weighted average
-  \item Apply adaptive step size for stable convergence
-  \item Repeat until convergence or max iterations
+  \item Normalize anomaly scores to [0, 1]
+  \item Generate kernel density estimation (KDE) using Gaussian kernel
+  \item Perform element-wise multiplication: KDE values × sorted normalized scores
+  \item Compute weighted arithmetic mean (Frechet mean in Euclidean space)
+  \item Denormalize back to original scale
+  \item Calculate threshold: Frechet mean + multiplier × SD
 }
 
-The adaptive step size \eqn{s_t = 1/(1 + t/10)} ensures convergence even for 
-difficult distributions.
+\strong{Simple Mode:}
+\enumerate{
+  \item Compute weighted arithmetic mean directly on scores
+  \item Calculate threshold: mean + multiplier × SD
+}
+
+For 1D Euclidean space, the Frechet mean is simply the weighted arithmetic mean.
 }
 
 \section{Computational Complexity}{
 \itemize{
-  \item Time: \eqn{O(n \times k)} where \eqn{n} is sample size and \eqn{k} is 
-        iterations (typically \eqn{k < 50})
-  \item Space: \eqn{O(n)} for storing scores and weights
-  \item Generally comparable to MAD in practice
+  \item \strong{Complex mode}: \eqn{O(n \log n)} for KDE computation
+  \item \strong{Simple mode}: \eqn{O(n)} for direct mean computation
+  \item Space: \eqn{O(n)} for storing scores and KDE values
+  \item Complex mode is slightly slower than MAD, but provides better distribution fitting
 }
 }
 
@@ -106,7 +126,8 @@ difficult distributions.
 set_anomaly_threshold(
   object, 
   method = "karcher",
-  karcher_multiplier = 2.5,
+  karcher_multiplier = 3,
+  karcher_method = "complex",
   karcher_max_iter = 100,
   karcher_tol = 1e-6
 )
@@ -115,7 +136,8 @@ set_anomaly_threshold(
 \arguments{
   \item{object}{An isoForest model object}
   \item{method}{Set to "karcher" for this method}
-  \item{karcher_multiplier}{Multiplier for threshold calculation (default: 2.5)}
+  \item{karcher_multiplier}{Multiplier for threshold calculation (default: 3)}
+  \item{karcher_method}{Computation method: "simple" or "complex" (default: "complex")}
   \item{karcher_max_iter}{Maximum iterations (default: 100)}
   \item{karcher_tol}{Convergence tolerance (default: 1e-6)}
 }
@@ -146,7 +168,20 @@ result_sensitive <- set_anomaly_threshold(
 result_conservative <- set_anomaly_threshold(
   model, 
   method = "karcher",
-  karcher_multiplier = 3.0  # More conservative
+  karcher_multiplier = 4.0  # More conservative
+)
+
+# Compare simple vs complex method
+result_simple <- set_anomaly_threshold(
+  model,
+  method = "karcher",
+  karcher_method = "simple"
+)
+
+result_complex <- set_anomaly_threshold(
+  model,
+  method = "karcher",
+  karcher_method = "complex"
 )
 
 # Compare anomaly counts
@@ -171,6 +206,9 @@ print(comparison)
 }
 
 \references{
+Zhao, Y., Nasrullah, Z., & Li, Z. (2019). PyOD: A Python Toolbox for Scalable 
+Outlier Detection. \emph{Journal of Machine Learning Research}, \strong{20}(96), 1-7.
+
 Pennec, X. (2006). Intrinsic statistics on Riemannian manifolds: Basic tools for 
 geometric measurements. \emph{Journal of Mathematical Imaging and Vision}, 
 \strong{25}(1), 127-154.
@@ -179,9 +217,8 @@ Afsari, B. (2011). Riemannian Lp center of mass: existence, uniqueness, and
 convexity. \emph{Proceedings of the American Mathematical Society}, 
 \strong{139}(2), 655-673.
 
-Fletcher, P. T., Venkatasubramanian, S., & Joshi, S. (2009). The geometric median 
-on Riemannian manifolds with application to robust atlas estimation. 
-\emph{NeuroImage}, \strong{45}(1), S143-S152.
+Miolane, N., et al. (2020). Geomstats: A Python Package for Riemannian Geometry 
+in Machine Learning. \emph{Journal of Machine Learning Research}, \strong{21}(223), 1-9.
 }
 
 \seealso{

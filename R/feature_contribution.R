@@ -283,3 +283,304 @@ print.feature_contribution <- function(x, top_n = 5, ...) {
     }
   }
 }
+
+#' @title Plot feature boxplot with all data points and anomaly highlighted
+#' @description
+#' Create boxplots for features with their contributions to anomaly scores.
+#' All data points are shown as small black dots, with the anomalous point
+#' highlighted in red (or custom color) for easy identification.
+#' @param contribution_obj A feature_contribution object from feature_contribution()
+#' @param data The original training data
+#' @param sample_id The sample ID to visualize (if NULL, uses the first sample in contribution_obj)
+#' @param top_n Number of top contributing features to display (default 5, NULL for all)
+#' @param highlight_color Color for the anomaly point (default "red")
+#' @param highlight_size Size of the anomaly point (default 3)
+#' @param highlight_shape Shape of the anomaly point (default 16 = filled circle, not used currently)
+#' @param show_contribution Whether to show contribution percentages in title (default TRUE)
+#' @return A ggplot object
+#' @examples
+#' # Train model and calculate contributions
+#' model <- isoForest(iris[1:4])
+#' contributions <- feature_contribution(model, sample_ids = 42, data = iris[1:4])
+#' 
+#' # Plot boxplots with all data points and anomaly highlighted
+#' plot_feature_boxplot(contributions, iris[1:4], sample_id = 42)
+#' 
+#' # Show all features
+#' plot_feature_boxplot(contributions, iris[1:4], sample_id = 42, top_n = NULL)
+#' @export
+plot_feature_boxplot <- function(contribution_obj,
+                                 data,
+                                 sample_id = NULL,
+                                 top_n = 5,
+                                 highlight_color = "red",
+                                 highlight_size = 3,
+                                 highlight_shape = 17,
+                                 show_contribution = TRUE) {
+  
+  # Check for ggplot2
+  if (!requireNamespace("ggplot2", quietly = TRUE)) {
+    stop("Package 'ggplot2' is required for this function. Please install it with: install.packages('ggplot2')")
+  }
+  
+  # Validate inputs
+  if (!inherits(contribution_obj, "feature_contribution")) {
+    stop("contribution_obj must be a feature_contribution object")
+  }
+  
+  data <- as.data.frame(data)
+  
+  # Get sample results
+  sample_results <- contribution_obj[grepl("^sample_", names(contribution_obj))]
+  if (length(sample_results) == 0) {
+    stop("No sample results found in contribution object")
+  }
+  
+  # Determine which sample to plot
+  if (is.null(sample_id)) {
+    sample_result <- sample_results[[1]]
+    sample_id <- sample_result$sample_id
+    message("Using sample_id: ", sample_id)
+  } else {
+    sample_key <- paste0("sample_", sample_id)
+    if (!sample_key %in% names(sample_results)) {
+      stop("Sample ID ", sample_id, " not found in contribution object")
+    }
+    sample_result <- sample_results[[sample_key]]
+  }
+  
+  # Validate sample_id
+  if (sample_id < 1 || sample_id > nrow(data)) {
+    stop("sample_id out of range")
+  }
+  
+  # Get contributions and sort
+  contributions <- sample_result$contributions
+  contributions_sorted <- sort(contributions, decreasing = TRUE)
+  
+  # Select features to display
+  if (!is.null(top_n)) {
+    top_n <- min(top_n, length(contributions_sorted))
+    features_to_plot <- names(contributions_sorted)[1:top_n]
+  } else {
+    features_to_plot <- names(contributions_sorted)
+  }
+  
+  # Check if features exist in data
+  features_to_plot <- features_to_plot[features_to_plot %in% colnames(data)]
+  if (length(features_to_plot) == 0) {
+    stop("No valid features found in data")
+  }
+  
+  # Prepare data for plotting
+  plot_data_list <- lapply(features_to_plot, function(feat) {
+    values <- unname(data[[feat]])  # Remove row names to avoid warning
+    anomaly_value <- data[sample_id, feat]
+    contribution_pct <- contributions[feat] * 100
+    
+    # Mark which points are anomalies
+    is_anomaly_point <- seq_along(values) == sample_id
+    
+    data.frame(
+      feature = feat,
+      value = values,
+      contribution = contribution_pct,
+      is_anomaly = is_anomaly_point,
+      stringsAsFactors = FALSE,
+      row.names = NULL
+    )
+  })
+  
+  plot_data <- do.call(rbind, plot_data_list)
+  rownames(plot_data) <- NULL  # Remove row names from combined data
+  
+  # Create feature labels with contributions if requested
+  if (show_contribution) {
+    feature_labels <- sapply(features_to_plot, function(f) {
+      sprintf("%s\n(%.1f%%)", f, contributions[f] * 100)
+    })
+    plot_data$feature <- factor(plot_data$feature, 
+                                levels = features_to_plot,
+                                labels = feature_labels)
+  } else {
+    plot_data$feature <- factor(plot_data$feature, levels = features_to_plot)
+  }
+  
+  # Separate data for normal and anomaly points
+  normal_points <- plot_data[!plot_data$is_anomaly, ]
+  anomaly_points <- plot_data[plot_data$is_anomaly, ]
+  
+  # Create plot
+  p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = feature, y = value)) +
+    ggplot2::geom_boxplot(fill = "lightblue", alpha = 0.7, outlier.shape = NA) +
+    ggplot2::geom_point(data = normal_points,
+                       ggplot2::aes(x = feature, y = value),
+                       color = "black",
+                       size = 1,
+                       alpha = 0.4,
+                       position = ggplot2::position_jitter(width = 0.2, height = 0)) +
+    ggplot2::geom_point(data = anomaly_points, 
+                       ggplot2::aes(x = feature, y = value),
+                       color = highlight_color,
+                       size = highlight_size,
+                       shape = 16) +
+    ggplot2::labs(
+      title = sprintf("Feature Distribution with Anomaly Point (Sample #%d)", sample_id),
+      subtitle = sprintf("Anomaly Score: %.3f | Red dot indicates anomalous value", 
+                        sample_result$score),
+      x = if(show_contribution) "Feature (Contribution %)" else "Feature",
+      y = "Value"
+    ) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(face = "bold", size = 14),
+      plot.subtitle = ggplot2::element_text(size = 10, color = "gray40"),
+      axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+      panel.grid.major.x = ggplot2::element_blank()
+    )
+  
+  return(p)
+}
+
+#' @title Plot multiple feature boxplots (faceted) with all data points
+#' @description
+#' Create faceted boxplots for better comparison when many features are involved.
+#' All data points are shown as small black dots, with the anomalous point
+#' highlighted in red for easy identification. This is useful when top_n is 
+#' large or you want to see all features.
+#' @param contribution_obj A feature_contribution object from feature_contribution()
+#' @param data The original training data
+#' @param sample_id The sample ID to visualize (if NULL, uses the first sample)
+#' @param top_n Number of top contributing features to display (default 8, NULL for all)
+#' @param ncol Number of columns in facet grid (default 2)
+#' @param highlight_color Color for the anomaly point (default "red")
+#' @param scales Should scales be fixed ("fixed") or free ("free", "free_y")? Default "free_y"
+#' @return A ggplot object
+#' @examples
+#' model <- isoForest(iris[1:4])
+#' contributions <- feature_contribution(model, sample_ids = 42, data = iris[1:4])
+#' 
+#' # Faceted view with all data points
+#' plot_feature_boxplot_faceted(contributions, iris[1:4], sample_id = 42)
+#' @export
+plot_feature_boxplot_faceted <- function(contribution_obj,
+                                        data,
+                                        sample_id = NULL,
+                                        top_n = 8,
+                                        ncol = 2,
+                                        highlight_color = "red",
+                                        scales = "free_y") {
+  
+  # Check for ggplot2
+  if (!requireNamespace("ggplot2", quietly = TRUE)) {
+    stop("Package 'ggplot2' is required. Please install it with: install.packages('ggplot2')")
+  }
+  
+  # Validate inputs
+  if (!inherits(contribution_obj, "feature_contribution")) {
+    stop("contribution_obj must be a feature_contribution object")
+  }
+  
+  data <- as.data.frame(data)
+  
+  # Get sample results
+  sample_results <- contribution_obj[grepl("^sample_", names(contribution_obj))]
+  if (length(sample_results) == 0) {
+    stop("No sample results found in contribution object")
+  }
+  
+  # Determine which sample to plot
+  if (is.null(sample_id)) {
+    sample_result <- sample_results[[1]]
+    sample_id <- sample_result$sample_id
+    message("Using sample_id: ", sample_id)
+  } else {
+    sample_key <- paste0("sample_", sample_id)
+    if (!sample_key %in% names(sample_results)) {
+      stop("Sample ID ", sample_id, " not found in contribution object")
+    }
+    sample_result <- sample_results[[sample_key]]
+  }
+  
+  # Validate sample_id
+  if (sample_id < 1 || sample_id > nrow(data)) {
+    stop("sample_id out of range")
+  }
+  
+  # Get contributions and sort
+  contributions <- sample_result$contributions
+  contributions_sorted <- sort(contributions, decreasing = TRUE)
+  
+  # Select features to display
+  if (!is.null(top_n)) {
+    top_n <- min(top_n, length(contributions_sorted))
+    features_to_plot <- names(contributions_sorted)[1:top_n]
+  } else {
+    features_to_plot <- names(contributions_sorted)
+  }
+  
+  # Check if features exist in data
+  features_to_plot <- features_to_plot[features_to_plot %in% colnames(data)]
+  if (length(features_to_plot) == 0) {
+    stop("No valid features found in data")
+  }
+  
+  # Prepare data for plotting - include all data points with anomaly marking
+  plot_data_list <- lapply(features_to_plot, function(feat) {
+    values <- unname(data[[feat]])
+    # Mark which points are anomalies
+    is_anomaly_point <- seq_along(values) == sample_id
+    
+    data.frame(
+      feature = sprintf("%s (%.1f%%)", feat, contributions[feat] * 100),
+      value = values,
+      is_anomaly = is_anomaly_point,
+      stringsAsFactors = FALSE,
+      row.names = NULL
+    )
+  })
+  
+  plot_data <- do.call(rbind, plot_data_list)
+  rownames(plot_data) <- NULL  # Remove row names from combined data
+  
+  # Order features by contribution
+  feature_order <- sprintf("%s (%.1f%%)", features_to_plot, 
+                          sapply(features_to_plot, function(f) contributions[f] * 100))
+  feature_order <- feature_order[order(contributions[features_to_plot], decreasing = TRUE)]
+  plot_data$feature <- factor(plot_data$feature, levels = feature_order)
+  
+  # Separate normal and anomaly points
+  normal_points <- plot_data[!plot_data$is_anomaly, ]
+  anomaly_points <- plot_data[plot_data$is_anomaly, ]
+  
+  # Create faceted plot
+  p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = "", y = value)) +
+    ggplot2::geom_boxplot(fill = "lightblue", alpha = 0.7, outlier.shape = NA) +
+    ggplot2::geom_point(data = normal_points,
+                       color = "black", 
+                       size = 1, 
+                       alpha = 0.4,
+                       position = ggplot2::position_jitter(width = 0.2, height = 0)) +
+    ggplot2::geom_point(data = anomaly_points,
+                       color = highlight_color,
+                       size = 3,
+                       shape = 16) +
+    ggplot2::facet_wrap(~ feature, scales = scales, ncol = ncol) +
+    ggplot2::labs(
+      title = sprintf("Feature Distributions with Anomaly Point (Sample #%d)", sample_id),
+      subtitle = sprintf("Anomaly Score: %.3f | Red dot indicates anomalous value", 
+                        sample_result$score),
+      x = NULL,
+      y = "Value"
+    ) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(face = "bold", size = 14),
+      plot.subtitle = ggplot2::element_text(size = 10, color = "gray40"),
+      axis.text.x = ggplot2::element_blank(),
+      strip.text = ggplot2::element_text(face = "bold", size = 9),
+      panel.grid.major.x = ggplot2::element_blank()
+    )
+  
+  return(p)
+}

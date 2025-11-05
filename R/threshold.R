@@ -10,7 +10,8 @@
 #' @param iqr_multiplier The IQR multiplier (for iqr method). Default is 1.5
 #' @param zscore_threshold The z-score threshold (for zscore method). Default is 2
 #' @param mad_multiplier The MAD multiplier (for mad method). Default is 3
-#' @param karcher_multiplier The multiplier for Karcher mean distance (for karcher method). Default is 2.5
+#' @param karcher_multiplier The multiplier for standard deviation (for karcher method). Default is 1
+#' @param karcher_method Method for Karcher mean computation: "simple" or "complex". Default is "complex"
 #' @param karcher_max_iter Maximum iterations for Karcher mean computation. Default is 100
 #' @param karcher_tol Convergence tolerance for Karcher mean. Default is 1e-6
 #' @param mtt_alpha Significance level for MTT (Modified Thompson Tau) test. Default is 0.05
@@ -41,8 +42,8 @@
 #' # Method 5: MAD-based (robust)
 #' result5 <- set_anomaly_threshold(model, method = "mad", mad_multiplier = 3)
 #' 
-#' # Method 6: Karcher mean-based (Riemannian center of mass, very robust)
-#' result6 <- set_anomaly_threshold(model, method = "karcher", karcher_multiplier = 2.5)
+#' # Method 6: Karcher mean-based (Riemannian center of mass)
+#' result6 <- set_anomaly_threshold(model, method = "karcher", karcher_multiplier = 3)
 #' 
 #' # Method 7: MTT-based (Modified Thompson Tau test, good for small samples)
 #' result7 <- set_anomaly_threshold(model, method = "mtt", mtt_alpha = 0.05)
@@ -61,7 +62,8 @@ set_anomaly_threshold <- function(object,
                                   iqr_multiplier = 1.5,
                                   zscore_threshold = 2,
                                   mad_multiplier = 3,
-                                  karcher_multiplier = 2.5,
+                                  karcher_multiplier = 3,
+                                  karcher_method = "complex",
                                   karcher_max_iter = 100,
                                   karcher_tol = 1e-6,
                                   mtt_alpha = 0.05,
@@ -113,22 +115,48 @@ set_anomaly_threshold <- function(object,
       median_score + mad_multiplier * mad_score
     },
     
-    "karcher" = {
-      # Compute Karcher mean (Riemannian center of mass) using weighted Fréchet mean
-      # This is a robust method based on minimizing the sum of squared distances
-      karcher_mean <- compute_karcher_mean(scores, 
-                                           max_iter = karcher_max_iter, 
-                                           tol = karcher_tol)
-      
-      # Compute distances from Karcher mean
-      distances <- abs(scores - karcher_mean)
-      
-      # Use robust scale estimate (MAD of distances)
-      scale <- stats::median(distances) * 1.4826  # MAD with consistency factor
-      
-      # Set threshold based on Karcher mean + multiplier * scale
-      karcher_mean + karcher_multiplier * scale
-    },
+      "karcher" = {
+        # Compute Karcher mean (Frechet mean / Riemannian center of mass)
+        # Following the PyOD KARCH implementation
+        
+        # Check if we have enough data for complex method
+        n <- length(scores)
+        use_complex <- (karcher_method == "complex" && n >= 3)
+        
+        if (use_complex) {
+          # Complex method: use KDE + element-wise multiplication
+          # Normalize scores to [0, 1] for KDE
+          scores_norm <- (scores - min(scores)) / (max(scores) - min(scores))
+          
+          # Generate KDE of normalized scores
+          kde_result <- gen_kde(scores_norm, 0, 1, n)
+          
+          # Element-wise multiplication (weighted by KDE density)
+          vals <- kde_result * sort(scores_norm)
+          
+          # Compute Frechet mean
+          karcher_mean <- compute_karcher_mean(vals, 
+                                               max_iter = karcher_max_iter, 
+                                               tol = karcher_tol)
+          
+          # Denormalize back to original scale
+          karcher_mean <- karcher_mean * (max(scores) - min(scores)) + min(scores)
+        } else {
+          # Simple method: directly compute on scores
+          karcher_mean <- compute_karcher_mean(scores, 
+                                               max_iter = karcher_max_iter, 
+                                               tol = karcher_tol)
+        }
+        
+        # Get mean of Karcher mean dimensions
+        limit_center <- mean(karcher_mean, na.rm = TRUE)
+        
+        # Use standard deviation as scale (following PyOD implementation)
+        scale <- stats::sd(scores, na.rm = TRUE)
+        
+        # Set threshold: mean(karcher_mean) + multiplier * std
+        limit_center + karcher_multiplier * scale
+      },
     
     "mtt" = {
       # Modified Thompson Tau test for outlier detection
@@ -253,62 +281,42 @@ is_anomaly <- function(object, contamination = 0.05) {
 #' Pennec, X. (2006). Intrinsic statistics on Riemannian manifolds: 
 #' Basic tools for geometric measurements. Journal of Mathematical Imaging and Vision, 25(1), 127-154.
 #' @keywords internal
+#' @title Generate Kernel Density Estimation
+#' @description
+#' Generates Kernel Density Estimation (KDE) for input data using Gaussian kernel.
+#' This is used in the complex Karcher mean computation.
+#' @param x Input data (scores)
+#' @param lb Lower bound for KDE evaluation points
+#' @param ub Upper bound for KDE evaluation points
+#' @param num_points Number of evaluation points
+#' @return KDE values at evaluation points
+#' @keywords internal
+gen_kde <- function(x, lb, ub, num_points) {
+  # Generate Kernel Density Estimation using Gaussian kernel
+  kde <- stats::density(x, kernel = "gaussian", n = num_points, 
+                       from = lb, to = ub)
+  kde$y
+}
+
 compute_karcher_mean <- function(x, max_iter = 100, tol = 1e-6, weights = NULL) {
-  # Remove NA values
-  x <- x[!is.na(x)]
-  n <- length(x)
+  # Compute Frechet mean (Karcher mean) in Euclidean space
+  # For Euclidean space, this is simply the weighted arithmetic mean
   
-  if (n == 0) {
-    stop("No valid data points for Karcher mean computation")
-  }
+  # Convert to vector if matrix
+  x_vec <- if (is.matrix(x)) as.vector(x) else x
+  x_vec <- x_vec[!is.na(x_vec)]
   
-  if (n == 1) {
-    return(x[1])
-  }
+  n <- length(x_vec)
+  if (n == 0) stop("No valid data points for Karcher mean computation")
+  if (n == 1) return(x_vec[1])
   
-  # Initialize weights if not provided
+  # Use uniform weights if not provided
   if (is.null(weights)) {
-    weights <- rep(1/n, n)
-  } else {
-    weights <- weights / sum(weights)  # Normalize
+    weights <- rep(1, n)
   }
   
-  # Initialize with weighted median (robust starting point)
-  current_mean <- stats::median(x)
-  
-  # Iterative optimization using gradient descent with adaptive step size
-  for (iter in 1:max_iter) {
-    # Compute signed distances
-    distances <- x - current_mean
-    
-    # Compute weights inversely proportional to distances (with regularization)
-    # This implements the Riemannian metric structure
-    epsilon <- 1e-10  # Regularization to avoid division by zero
-    dist_weights <- 1 / (abs(distances) + epsilon)
-    
-    # Combine with original weights
-    combined_weights <- weights * dist_weights
-    combined_weights <- combined_weights / sum(combined_weights)
-    
-    # Update mean using weighted average
-    new_mean <- sum(x * combined_weights)
-    
-    # Check convergence
-    change <- abs(new_mean - current_mean)
-    
-    if (change < tol) {
-      return(new_mean)
-    }
-    
-    # Adaptive step size to ensure convergence
-    step_size <- 1 / (1 + iter / 10)
-    current_mean <- current_mean + step_size * (new_mean - current_mean)
-  }
-  
-  # If not converged, issue warning but return best estimate
-  warning("Karcher mean did not converge within ", max_iter, 
-          " iterations. Returning best estimate.")
-  return(current_mean)
+  # Compute weighted mean (Frechet mean in Euclidean space)
+  sum(weights * x_vec) / sum(weights)
 }
 
 #' @title Compute Modified Thompson Tau (MTT) Threshold
