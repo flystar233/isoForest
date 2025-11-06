@@ -7,3 +7,4 @@
 ^_pkgdown\.yml$
 ^docs$
 ^pkgdown$
+^VIGNETTE_RELEASE_GUIDE\.md$

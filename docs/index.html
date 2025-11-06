@@ -8,8 +8,8 @@
 <title>Find the Outlier by Isolation Forest • isoForest</title>
 <script src="deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.4.2/css/all.min.css" rel="stylesheet">
-<link href="deps/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet">
+<script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Find the Outlier by Isolation Forest">
 <meta name="description" content="Provides a simple method to replicate outlier detection using Isolation Forest. The isolation forest is built using the ranger package. Isolation forest algorithm is anomaly detection method introduced by the paper Isolation based Anomaly Detection (Liu, Ting and Zhou &lt;doi:10.1145/2133360.2133363&gt;).">
 <meta property="og:description" content="Provides a simple method to replicate outlier detection using Isolation Forest. The isolation forest is built using the ranger package. Isolation forest algorithm is anomaly detection method introduced by the paper Isolation based Anomaly Detection (Liu, Ting and Zhou &lt;doi:10.1145/2133360.2133363&gt;).">
@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="index.html">isoForest</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -33,6 +33,12 @@
       <ul class="navbar-nav me-auto">
 <li class="nav-item"><a class="nav-link" href="articles/isoForest.html">Get started</a></li>
 <li class="nav-item"><a class="nav-link" href="reference/index.html">Reference</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
+<li><a class="dropdown-item" href="articles/threshold_methods_explained.html">Threshold Methods for Anomaly Detection</a></li>
+  </ul>
+</li>
 <li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
@@ -75,11 +81,183 @@
 <span><span class="co">#6     6          7.39         0.572</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="visualization">visualization<a class="anchor" aria-label="anchor" href="#visualization"></a>
+<h2 id="feature-contribution-analysis">Feature Contribution Analysis<a class="anchor" aria-label="anchor" href="#feature-contribution-analysis"></a>
 </h2>
+<p>The <code><a href="reference/feature_contribution.html">feature_contribution()</a></code> function helps you understand which features contribute most to a sample’s anomaly score. This is crucial for interpreting anomaly detection results and understanding why certain samples are flagged as outliers.</p>
+<div class="section level3">
+<h3 id="methods-available">Methods Available<a class="anchor" aria-label="anchor" href="#methods-available"></a>
+</h3>
+<ul>
+<li>
+<strong>Path-based analysis</strong> (default): Analyzes decision paths in isolation trees to determine feature importance</li>
+<li>
+<strong>Permutation importance</strong>: Measures how much each feature affects the anomaly score when its values are randomly permuted</li>
+</ul>
+</div>
+<div class="section level3">
+<h3 id="basic-usage">Basic Usage<a class="anchor" aria-label="anchor" href="#basic-usage"></a>
+</h3>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Train isolation forest</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/isoForest.html">isoForest</a></span><span class="op">(</span><span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Analyze feature contributions for anomalous samples</span></span>
+<span><span class="va">contributions</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/feature_contribution.html">feature_contribution</a></span><span class="op">(</span><span class="va">model</span>, data <span class="op">=</span> <span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">contributions</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Analyze specific samples</span></span>
+<span><span class="va">contributions</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/feature_contribution.html">feature_contribution</a></span><span class="op">(</span><span class="va">model</span>, </span>
+<span>                                    sample_ids <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">42</span>, <span class="fl">107</span>, <span class="fl">119</span><span class="op">)</span>, </span>
+<span>                                    data <span class="op">=</span> <span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">contributions</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="using-different-methods">Using Different Methods<a class="anchor" aria-label="anchor" href="#using-different-methods"></a>
+</h3>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Path-based analysis (default, faster)</span></span>
+<span><span class="va">path_contributions</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/feature_contribution.html">feature_contribution</a></span><span class="op">(</span><span class="va">model</span>, </span>
+<span>                                         sample_ids <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">50</span><span class="op">)</span>,</span>
+<span>                                         data <span class="op">=</span> <span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span>, </span>
+<span>                                         method <span class="op">=</span> <span class="st">"path"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Permutation importance (more accurate but slower)</span></span>
+<span><span class="va">perm_contributions</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/feature_contribution.html">feature_contribution</a></span><span class="op">(</span><span class="va">model</span>, </span>
+<span>                                         sample_ids <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">50</span><span class="op">)</span>,</span>
+<span>                                         data <span class="op">=</span> <span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span>, </span>
+<span>                                         method <span class="op">=</span> <span class="st">"permutation"</span>,</span>
+<span>                                         n_permutations <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="interpreting-results">Interpreting Results<a class="anchor" aria-label="anchor" href="#interpreting-results"></a>
+</h3>
+<p>The function returns contribution percentages showing how much each feature contributes to the anomaly score:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Example output:</span></span>
+<span><span class="co"># Sample 42 | Score: 0.723</span></span>
+<span><span class="co">#   Petal.Length: 45.2%</span></span>
+<span><span class="co">#   Petal.Width: 32.1% </span></span>
+<span><span class="co">#   Sepal.Length: 15.4%</span></span>
+<span><span class="co">#   Sepal.Width: 7.3%</span></span></code></pre></div>
+</div>
+</div>
+<div class="section level2">
+<h2 id="anomaly-threshold-setting">Anomaly Threshold Setting<a class="anchor" aria-label="anchor" href="#anomaly-threshold-setting"></a>
+</h2>
+<p>The package provides multiple methods for setting anomaly detection thresholds. Instead of manually choosing a threshold, you can use statistical and geometric methods to automatically determine the optimal threshold.</p>
+<div class="section level3">
+<h3 id="available-methods">Available Methods<a class="anchor" aria-label="anchor" href="#available-methods"></a>
+</h3>
+<table class="table">
+<colgroup>
+<col width="25%">
+<col width="41%">
+<col width="32%">
+</colgroup>
+<thead><tr class="header">
+<th>Method</th>
+<th>Description</th>
+<th>Best For</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><strong>contamination</strong></td>
+<td>Set threshold based on expected outlier proportion</td>
+<td>Known anomaly rate</td>
+</tr>
+<tr class="even">
+<td><strong>quantile</strong></td>
+<td>Use a specific quantile as threshold</td>
+<td>Percentile-based detection</td>
+</tr>
+<tr class="odd">
+<td><strong>iqr</strong></td>
+<td>Interquartile range (Q3 + 1.5×IQR)</td>
+<td>Box-plot style analysis</td>
+</tr>
+<tr class="even">
+<td><strong>zscore</strong></td>
+<td>Z-score based (mean + 2×sd)</td>
+<td>Normal distributions</td>
+</tr>
+<tr class="odd">
+<td><strong>mad</strong></td>
+<td>Median Absolute Deviation</td>
+<td>Robust, symmetric distributions</td>
+</tr>
+<tr class="even">
+<td><strong>karcher</strong></td>
+<td>Karcher mean (Riemannian center)</td>
+<td>Heavy tails, extreme outliers</td>
+</tr>
+<tr class="odd">
+<td><strong>mtt</strong></td>
+<td>Modified Thompson Tau test</td>
+<td>Small to medium samples</td>
+</tr>
+<tr class="even">
+<td><strong>manual</strong></td>
+<td>User-specified threshold</td>
+<td>Custom requirements</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section level3">
+<h3 id="quick-start">Quick Start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
+</h3>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Train model</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/flystar233/isoForest" class="external-link">isoForest</a></span><span class="op">)</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/isoForest.html">isoForest</a></span><span class="op">(</span><span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Method 1: Contamination-based (most common)</span></span>
+<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/set_anomaly_threshold.html">set_anomaly_threshold</a></span><span class="op">(</span><span class="va">model</span>, method <span class="op">=</span> <span class="st">"contamination"</span>, contamination <span class="op">=</span> <span class="fl">0.05</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">result</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Get anomalous samples</span></span>
+<span><span class="va">anomalies</span> <span class="op">&lt;-</span> <span class="va">iris</span><span class="op">[</span><span class="va">result</span><span class="op">$</span><span class="va">predictions</span><span class="op">$</span><span class="va">is_anomaly</span>, <span class="op">]</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">anomalies</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="robust-methods">Robust Methods<a class="anchor" aria-label="anchor" href="#robust-methods"></a>
+</h3>
+<p>For data with extreme outliers or heavy-tailed distributions:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Karcher mean method (highly robust)</span></span>
+<span><span class="va">result_karcher</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/set_anomaly_threshold.html">set_anomaly_threshold</a></span><span class="op">(</span><span class="va">model</span>, method <span class="op">=</span> <span class="st">"karcher"</span>, karcher_multiplier <span class="op">=</span> <span class="fl">2.5</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># MAD method (robust and fast)</span></span>
+<span><span class="va">result_mad</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/set_anomaly_threshold.html">set_anomaly_threshold</a></span><span class="op">(</span><span class="va">model</span>, method <span class="op">=</span> <span class="st">"mad"</span>, mad_multiplier <span class="op">=</span> <span class="fl">3</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Compare results</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Karcher detected:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">result_karcher</span><span class="op">$</span><span class="va">predictions</span><span class="op">$</span><span class="va">is_anomaly</span><span class="op">)</span>, <span class="st">"anomalies\n"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"MAD detected:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">result_mad</span><span class="op">$</span><span class="va">predictions</span><span class="op">$</span><span class="va">is_anomaly</span><span class="op">)</span>, <span class="st">"anomalies\n"</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="statistical-testing">Statistical Testing<a class="anchor" aria-label="anchor" href="#statistical-testing"></a>
+</h3>
+<p>For small to medium sample sizes with statistical guarantees:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Modified Thompson Tau test</span></span>
+<span><span class="va">result_mtt</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/set_anomaly_threshold.html">set_anomaly_threshold</a></span><span class="op">(</span></span>
+<span>  <span class="va">model</span>, </span>
+<span>  method <span class="op">=</span> <span class="st">"mtt"</span>,</span>
+<span>  mtt_alpha <span class="op">=</span> <span class="fl">0.05</span>,      <span class="co"># Significance level</span></span>
+<span>  mtt_max_iter <span class="op">=</span> <span class="fl">30</span>      <span class="co"># Maximum iterations</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Adjust sensitivity</span></span>
+<span><span class="va">result_strict</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/set_anomaly_threshold.html">set_anomaly_threshold</a></span><span class="op">(</span><span class="va">model</span>, method <span class="op">=</span> <span class="st">"mtt"</span>, mtt_alpha <span class="op">=</span> <span class="fl">0.01</span><span class="op">)</span>  <span class="co"># More conservative</span></span>
+<span><span class="va">result_loose</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/set_anomaly_threshold.html">set_anomaly_threshold</a></span><span class="op">(</span><span class="va">model</span>, method <span class="op">=</span> <span class="st">"mtt"</span>, mtt_alpha <span class="op">=</span> <span class="fl">0.10</span><span class="op">)</span>   <span class="co"># More sensitive</span></span></code></pre></div>
+</div>
+</div>
+<div class="section level2">
+<h2 id="visualization">Visualization<a class="anchor" aria-label="anchor" href="#visualization"></a>
+</h2>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/isoForest.html">isoForest</a></span><span class="op">(</span><span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">2</span><span class="op">]</span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/anomaly_plot.html">anomaly_plot</a></span><span class="op">(</span><span class="va">result</span>,<span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">2</span><span class="op">]</span>,plot_type<span class="op">=</span><span class="st">"heatmap"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="reference/anomaly_plot.html">anomaly_plot</a></span><span class="op">(</span><span class="va">result</span>, <span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">2</span><span class="op">]</span>, plot_type<span class="op">=</span><span class="st">"heatmap"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="https://github.com/user-attachments/assets/8518b445-1631-4e7b-be30-ddcc3dac10ac"></p>
 </div>
 </div>
@@ -110,7 +288,7 @@
 <div class="developers">
 <h2 data-toc-skip>Developers</h2>
 <ul class="list-unstyled">
-<li>Tengfei Xu <br><small class="roles"> Author, maintainer </small>  </li>
+<li>Tengfei Xu <br><small class="roles"> Author, maintainer </small>   </li>
 </ul>
 </div>
 
@@ -125,7 +303,7 @@
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
 </div>
 
     </footer>

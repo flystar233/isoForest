@@ -1,8 +1,8 @@
 Package: isoForest
 Type: Package
 Title: Find the Outlier by Isolation Forest
-Version: 1.0.0
-Date: 2024-08-27
+Version: 1.1.0
+Date: 2025-11-06
 Author: Tengfei Xu [aut, cre]
 Maintainer: Tengfei Xu <flystar233@gmail.com>
 Authors@R: 
@@ -18,7 +18,7 @@ Depends:
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 Packaged: 2024-08-22 11:06:44 UTC;
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 Imports: 
     stats,
     ranger,
@@ -30,6 +30,7 @@ BugReports: https://github.com/flystar233/isoForest/issues
 Suggests: 
     renv,
     knitr,
+    rmarkdown,
     testthat (>= 3.0.0)
 VignetteBuilder: knitr
 Config/testthat/edition: 3

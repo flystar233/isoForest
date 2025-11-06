@@ -10,7 +10,7 @@ feature_contribution(
   data,
   method = "path",
   contamination = 0.05,
-  n_permutations = 30,
+  n_permutations = 15,
   max_trees = 50
 )
 }
@@ -25,7 +25,9 @@ feature_contribution(
 
 \item{contamination}{Contamination rate for identifying anomalies (default 0.05)}
 
-\item{n_permutations}{Number of permutations for permutation importance (default 30)}
+\item{n_permutations}{Number of permutations for permutation importance (default 15).
+Lower values (10-15) are usually sufficient and much faster. Values above 20
+show diminishing returns.}
 
 \item{max_trees}{Maximum number of trees to analyze for path method (default 50)}
 }
@@ -44,7 +46,8 @@ model <- isoForest(iris[1:4])
 contributions <- feature_contribution(model, data = iris[1:4])
 print(contributions)
 
-# Analyze specific samples with permutation method
+# Analyze specific samples with permutation method (fast)
 contributions <- feature_contribution(model, sample_ids = c(1, 50), 
-                                    data = iris[1:4], method = "permutation")
+                                    data = iris[1:4], method = "permutation",
+                                    n_permutations = 10)  # 10-15 recommended
 }

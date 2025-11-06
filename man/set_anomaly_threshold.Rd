@@ -15,7 +15,7 @@ set_anomaly_threshold(
   karcher_multiplier = 3,
   karcher_method = "complex",
   karcher_max_iter = 100,
-  karcher_tol = 1e-6,
+  karcher_tol = 1e-06,
   mtt_alpha = 0.05,
   mtt_max_iter = 30,
   manual_threshold = NULL
@@ -37,7 +37,7 @@ set_anomaly_threshold(
 
 \item{mad_multiplier}{The MAD multiplier (for mad method). Default is 3}
 
-\item{karcher_multiplier}{The multiplier for standard deviation (for karcher method). Default is 3}
+\item{karcher_multiplier}{The multiplier for standard deviation (for karcher method). Default is 1}
 
 \item{karcher_method}{Method for Karcher mean computation: "simple" or "complex". Default is "complex"}
 
@@ -64,34 +64,6 @@ A list containing:
 This function provides various methods to set thresholds for anomaly detection
 based on anomaly scores from isoForest.
 }
-\details{
-Available methods:
-\itemize{
-\item \strong{contamination}: Set threshold based on expected outlier proportion (e.g., top 5\% scores)
-\item \strong{quantile}: Use a specific quantile as threshold
-\item \strong{iqr}: Interquartile range method (Q3 + multiplier * IQR) - classic box-plot approach
-\item \strong{zscore}: Z-score based threshold (mean + multiplier * sd) - assumes normal distribution
-\item \strong{mad}: Median Absolute Deviation (median + multiplier * MAD) - robust method
-\item \strong{karcher}: Karcher mean / Frechet mean - geometric method based on Riemannian center of mass, 
-        with optional KDE (kernel density estimation) weighting for complex distributions. 
-        Uses standard deviation as scale measure. Supports two modes: "simple" (direct computation) 
-        and "complex" (KDE-weighted, default).
-\item \strong{mtt}: Modified Thompson Tau test - statistical test based on t-distribution, 
-        particularly suitable for small to medium sample sizes (n < 1000). Iteratively removes 
-        outliers with Bonferroni correction.
-\item \strong{manual}: User-specified threshold value
-}
-
-Method selection guidelines:
-\itemize{
-\item For \strong{known contamination rate}: use "contamination"
-\item For \strong{small samples (n < 100)}: use "mtt" or "mad"
-\item For \strong{extreme outliers or heavy tails}: use "karcher" or "mad"
-\item For \strong{normal distributions}: use "zscore"
-\item For \strong{interpretability}: use "iqr"
-\item For \strong{robust analysis}: use "karcher" or "mad"
-}
-}
 \examples{
 # Load data and train model
 data(iris)
@@ -112,7 +84,7 @@ result4 <- set_anomaly_threshold(model, method = "zscore", zscore_threshold = 2)
 # Method 5: MAD-based (robust)
 result5 <- set_anomaly_threshold(model, method = "mad", mad_multiplier = 3)
 
-# Method 6: Karcher mean-based (Riemannian center of mass, very robust)
+# Method 6: Karcher mean-based (Riemannian center of mass)
 result6 <- set_anomaly_threshold(model, method = "karcher", karcher_multiplier = 3)
 
 # Method 7: MTT-based (Modified Thompson Tau test, good for small samples)
@@ -124,14 +96,4 @@ result8 <- set_anomaly_threshold(model, method = "manual", manual_threshold = 0.
 # View results
 print(result1$summary)
 head(result1$predictions)
-
-# Compare different methods
-methods <- c("contamination", "mad", "karcher", "mtt")
-results <- lapply(methods, function(m) {
-  set_anomaly_threshold(model, method = m)
-})
-names(results) <- methods
-
-# Show comparison
-sapply(results, function(r) sum(r$predictions$is_anomaly))
 }
