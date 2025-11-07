@@ -145,7 +145,54 @@ result_strict <- set_anomaly_threshold(model, method = "mtt", mtt_alpha = 0.01) 
 result_loose <- set_anomaly_threshold(model, method = "mtt", mtt_alpha = 0.10)   # More sensitive
 ```
 
-## Visualization
+## Feature Distribution Visualization
+
+The package provides flexible visualization tools to understand how anomalies differ from normal data across features.
+
+### Visualizing Single Anomaly with Contribution Analysis
+
+When you want to understand why a specific sample is anomalous:
+
+```r
+# Calculate feature contributions
+model <- isoForest(iris[1:4])
+contributions <- feature_contribution(model, sample_ids = 42, data = iris[1:4])
+
+# Single boxplot view (shows top contributing features)
+plot_feature_boxplot(contributions, iris[1:4], sample_id = 42, top_n = 5)
+
+# Faceted view (better for many features)
+plot_feature_boxplot_faceted(contributions, iris[1:4], sample_id = 42, top_n = 8)
+```
+
+### Visualizing Multiple Anomalies (Without Contribution Analysis)
+
+When you want to see where all detected anomalies fall in the feature distributions:
+
+```r
+# Detect anomalies using threshold
+data <- read.csv('test.csv')
+model2 <- isoForest(data)
+result <- set_anomaly_threshold(model, method = "mtt", mtt_alpha = 0.05)
+anomaly_ids <- which(result$predictions$is_anomaly)
+
+# Visualize all anomalies at once
+plot_feature_boxplot(
+  contribution_obj = NULL,  # No contribution object needed
+  data = data,
+  sample_id = anomaly_ids   # Can be a vector of IDs
+)
+
+# Faceted view (recommended for multiple features)
+plot_feature_boxplot_faceted(
+  contribution_obj = NULL,
+  data = data,
+  sample_id = anomaly_ids,
+  top_n = NULL  # Show all features
+)
+```
+
+## Basic Visualization
 
 ```r
 result <- isoForest(iris[1:2])

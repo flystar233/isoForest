@@ -5,7 +5,7 @@
 \title{Plot feature boxplot with all data points and anomaly highlighted}
 \usage{
 plot_feature_boxplot(
-  contribution_obj,
+  contribution_obj = NULL,
   data,
   sample_id = NULL,
   top_n = 5,
@@ -16,38 +16,51 @@ plot_feature_boxplot(
 )
 }
 \arguments{
-\item{contribution_obj}{A feature_contribution object from feature_contribution()}
+\item{contribution_obj}{A feature_contribution object from feature_contribution(), or NULL.
+If NULL, you can specify multiple sample_ids to highlight multiple anomalies.}
 
 \item{data}{The original training data}
 
-\item{sample_id}{The sample ID to visualize (if NULL, uses the first sample in contribution_obj)}
+\item{sample_id}{The sample ID(s) to visualize. Can be a single value or a vector.
+\itemize{
+\item If contribution_obj is provided: only single value is used
+\item If contribution_obj is NULL: can be a vector to mark multiple anomalies
+\item If NULL and contribution_obj provided: uses first sample from contribution_obj
+}}
 
-\item{top_n}{Number of top contributing features to display (default 5, NULL for all)}
+\item{top_n}{Number of top contributing features to display (default 5, NULL for all).
+Only used when contribution_obj is provided.}
 
-\item{highlight_color}{Color for the anomaly point (default "red")}
+\item{highlight_color}{Color for the anomaly point(s) (default "red")}
 
-\item{highlight_size}{Size of the anomaly point (default 3)}
+\item{highlight_size}{Size of the anomaly point(s) (default 3).
+Automatically adjusted to 1 when >5 anomalies are highlighted}
 
-\item{highlight_shape}{Shape of the anomaly point (default 16 = filled circle, not used currently)}
+\item{highlight_shape}{Shape of the anomaly point(s) (default 17, not used currently)}
 
-\item{show_contribution}{Whether to show contribution percentages in title (default TRUE)}
+\item{show_contribution}{Whether to show contribution percentages in labels (default TRUE).
+Only applies when contribution_obj is provided.}
 }
 \value{
 A ggplot object
 }
 \description{
 Create boxplots for features with their contributions to anomaly scores.
-All data points are shown as small black dots, with the anomalous point
+All data points are shown as small black dots, with the anomalous point(s)
 highlighted in red (or custom color) for easy identification.
+Can work with or without a contribution object.
 }
 \examples{
-# Train model and calculate contributions
+# With contribution object
 model <- isoForest(iris[1:4])
 contributions <- feature_contribution(model, sample_ids = 42, data = iris[1:4])
-
-# Plot boxplots with all data points and anomaly highlighted
 plot_feature_boxplot(contributions, iris[1:4], sample_id = 42)
 
-# Show all features
-plot_feature_boxplot(contributions, iris[1:4], sample_id = 42, top_n = NULL)
+# Without contribution object - mark multiple anomalies
+anomaly_ids <- c(42, 107, 119)
+plot_feature_boxplot(contribution_obj = NULL, data = iris[1:4], sample_id = anomaly_ids)
+
+# Many anomalies (auto-adjust size)
+many_ids <- c(42, 61, 99, 107, 119, 132, 135)
+plot_feature_boxplot(NULL, iris[1:4], many_ids)
 }

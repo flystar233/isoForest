@@ -58,12 +58,27 @@
 <li>New internal functions: <code><a href="../reference/compute_mtt_threshold.html">compute_mtt_threshold()</a></code>, <code><a href="../reference/thompson_tau_critical.html">thompson_tau_critical()</a></code>
 </li>
 </ul></li>
+<li>Enhanced <strong><code><a href="../reference/plot_feature_boxplot.html">plot_feature_boxplot()</a></code></strong> and <strong><code><a href="../reference/plot_feature_boxplot_faceted.html">plot_feature_boxplot_faceted()</a></code></strong> visualization functions
+<ul><li>
+<code>contribution_obj</code> parameter is now optional (defaults to NULL)</li>
+<li>
+<code>sample_id</code> can now be a vector to highlight multiple anomalies at once</li>
+<li>Auto-optimization: point size adjusts to 1 when &gt;5 anomalies are marked</li>
+<li>Smart subtitle: shows sample IDs for ≤5 anomalies, simplified text for &gt;5</li>
+<li>Added <code>highlight_size</code> parameter to <code><a href="../reference/plot_feature_boxplot_faceted.html">plot_feature_boxplot_faceted()</a></code>
+</li>
+<li>All points (including anomalies) now use jitter effect to avoid overlap</li>
+<li>Better support for visualizing threshold detection results</li>
+</ul></li>
 </ul></div>
 <div class="section level3">
 <h3 id="improvements-1-1-0">Improvements<a class="anchor" aria-label="anchor" href="#improvements-1-1-0"></a></h3>
 <ul><li>Updated <code>mtt_max_iter</code> default value from 10 to 30 for better detection of multiple outliers</li>
 <li>Enhanced documentation with comprehensive method comparison and selection guide</li>
 <li>Added detailed threshold setting section to README.md</li>
+<li>Added “Feature Distribution Visualization” section to README.md with usage examples</li>
+<li>Improved plot clarity when displaying many anomaly points simultaneously</li>
+<li>Visualization functions now more flexible for exploring multiple anomalies</li>
 </ul></div>
 </div>
     <div class="section level2">

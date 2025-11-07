@@ -253,9 +253,55 @@
 </div>
 </div>
 <div class="section level2">
-<h2 id="visualization">Visualization<a class="anchor" aria-label="anchor" href="#visualization"></a>
+<h2 id="feature-distribution-visualization">Feature Distribution Visualization<a class="anchor" aria-label="anchor" href="#feature-distribution-visualization"></a>
 </h2>
+<p>The package provides flexible visualization tools to understand how anomalies differ from normal data across features.</p>
+<div class="section level3">
+<h3 id="visualizing-single-anomaly-with-contribution-analysis">Visualizing Single Anomaly with Contribution Analysis<a class="anchor" aria-label="anchor" href="#visualizing-single-anomaly-with-contribution-analysis"></a>
+</h3>
+<p>When you want to understand why a specific sample is anomalous:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Calculate feature contributions</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/isoForest.html">isoForest</a></span><span class="op">(</span><span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="va">contributions</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/feature_contribution.html">feature_contribution</a></span><span class="op">(</span><span class="va">model</span>, sample_ids <span class="op">=</span> <span class="fl">42</span>, data <span class="op">=</span> <span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Single boxplot view (shows top contributing features)</span></span>
+<span><span class="fu"><a href="reference/plot_feature_boxplot.html">plot_feature_boxplot</a></span><span class="op">(</span><span class="va">contributions</span>, <span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span>, sample_id <span class="op">=</span> <span class="fl">42</span>, top_n <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Faceted view (better for many features)</span></span>
+<span><span class="fu"><a href="reference/plot_feature_boxplot_faceted.html">plot_feature_boxplot_faceted</a></span><span class="op">(</span><span class="va">contributions</span>, <span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span>, sample_id <span class="op">=</span> <span class="fl">42</span>, top_n <span class="op">=</span> <span class="fl">8</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="visualizing-multiple-anomalies-without-contribution-analysis">Visualizing Multiple Anomalies (Without Contribution Analysis)<a class="anchor" aria-label="anchor" href="#visualizing-multiple-anomalies-without-contribution-analysis"></a>
+</h3>
+<p>When you want to see where all detected anomalies fall in the feature distributions:</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Detect anomalies using threshold</span></span>
+<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">read.csv</a></span><span class="op">(</span><span class="st">'test.csv'</span><span class="op">)</span></span>
+<span><span class="va">model2</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/isoForest.html">isoForest</a></span><span class="op">(</span><span class="va">data</span><span class="op">)</span></span>
+<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/set_anomaly_threshold.html">set_anomaly_threshold</a></span><span class="op">(</span><span class="va">model</span>, method <span class="op">=</span> <span class="st">"mtt"</span>, mtt_alpha <span class="op">=</span> <span class="fl">0.05</span><span class="op">)</span></span>
+<span><span class="va">anomaly_ids</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/which.html" class="external-link">which</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">predictions</span><span class="op">$</span><span class="va">is_anomaly</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Visualize all anomalies at once</span></span>
+<span><span class="fu"><a href="reference/plot_feature_boxplot.html">plot_feature_boxplot</a></span><span class="op">(</span></span>
+<span>  contribution_obj <span class="op">=</span> <span class="cn">NULL</span>,  <span class="co"># No contribution object needed</span></span>
+<span>  data <span class="op">=</span> <span class="va">data</span>,</span>
+<span>  sample_id <span class="op">=</span> <span class="va">anomaly_ids</span>   <span class="co"># Can be a vector of IDs</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Faceted view (recommended for multiple features)</span></span>
+<span><span class="fu"><a href="reference/plot_feature_boxplot_faceted.html">plot_feature_boxplot_faceted</a></span><span class="op">(</span></span>
+<span>  contribution_obj <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">data</span>,</span>
+<span>  sample_id <span class="op">=</span> <span class="va">anomaly_ids</span>,</span>
+<span>  top_n <span class="op">=</span> <span class="cn">NULL</span>  <span class="co"># Show all features</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
+</div>
+<div class="section level2">
+<h2 id="basic-visualization">Basic Visualization<a class="anchor" aria-label="anchor" href="#basic-visualization"></a>
+</h2>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/isoForest.html">isoForest</a></span><span class="op">(</span><span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">2</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/anomaly_plot.html">anomaly_plot</a></span><span class="op">(</span><span class="va">result</span>, <span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">2</span><span class="op">]</span>, plot_type<span class="op">=</span><span class="st">"heatmap"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="https://github.com/user-attachments/assets/8518b445-1631-4e7b-be30-ddcc3dac10ac"></p>

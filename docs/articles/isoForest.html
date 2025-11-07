@@ -132,32 +132,216 @@ depth across the entire forest.</p></li>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 6 × 3</span></span></span>
 <span><span class="co">#&gt;      id average_depth anomaly_score</span></span>
 <span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span>     1          7.85         0.552</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span>     2          7.78         0.555</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span>     3          7.67         0.560</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span>     4          7.51         0.567</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span>     5          7.77         0.556</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">6</span>     6          7.26         0.578</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span>     1          7.87         0.552</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span>     2          7.82         0.554</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span>     3          7.64         0.561</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span>     4          7.60         0.563</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span>     5          7.82         0.554</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">6</span>     6          7.38         0.573</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="visualization">Visualization<a class="anchor" aria-label="anchor" href="#visualization"></a>
+<h2 id="setting-anomaly-thresholds">Setting Anomaly Thresholds<a class="anchor" aria-label="anchor" href="#setting-anomaly-thresholds"></a>
 </h2>
-</div>
-<div class="section level2">
-<h2 id="heatmap">heatmap<a class="anchor" aria-label="anchor" href="#heatmap"></a>
-</h2>
+<p>The package provides multiple methods to automatically determine
+anomaly thresholds:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Train model</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/isoForest.html">isoForest</a></span><span class="op">(</span><span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Method 1: Contamination-based (most common)</span></span>
+<span><span class="va">result_contamination</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_anomaly_threshold.html">set_anomaly_threshold</a></span><span class="op">(</span></span>
+<span>  <span class="va">model</span>, </span>
+<span>  method <span class="op">=</span> <span class="st">"contamination"</span>, </span>
+<span>  contamination <span class="op">=</span> <span class="fl">0.05</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Method 2: MAD (robust to outliers)</span></span>
+<span><span class="va">result_mad</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_anomaly_threshold.html">set_anomaly_threshold</a></span><span class="op">(</span></span>
+<span>  <span class="va">model</span>, </span>
+<span>  method <span class="op">=</span> <span class="st">"mad"</span>, </span>
+<span>  mad_multiplier <span class="op">=</span> <span class="fl">3</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Method 3: KDE-weighted (density-aware)</span></span>
+<span><span class="va">result_kde</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_anomaly_threshold.html">set_anomaly_threshold</a></span><span class="op">(</span></span>
+<span>  <span class="va">model</span>, </span>
+<span>  method <span class="op">=</span> <span class="st">"kde_weighted"</span>, </span>
+<span>  kde_multiplier <span class="op">=</span> <span class="fl">3</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Method 4: MTT (statistical test, good for small samples)</span></span>
+<span><span class="va">result_mtt</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_anomaly_threshold.html">set_anomaly_threshold</a></span><span class="op">(</span></span>
+<span>  <span class="va">model</span>, </span>
+<span>  method <span class="op">=</span> <span class="st">"mtt"</span>, </span>
+<span>  mtt_alpha <span class="op">=</span> <span class="fl">0.05</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Compare results</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Contamination method:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">result_contamination</span><span class="op">$</span><span class="va">predictions</span><span class="op">$</span><span class="va">is_anomaly</span><span class="op">)</span>, <span class="st">"anomalies\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Contamination method: 8 anomalies</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"MAD method:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">result_mad</span><span class="op">$</span><span class="va">predictions</span><span class="op">$</span><span class="va">is_anomaly</span><span class="op">)</span>, <span class="st">"anomalies\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; MAD method: 16 anomalies</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"KDE-weighted method:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">result_kde</span><span class="op">$</span><span class="va">predictions</span><span class="op">$</span><span class="va">is_anomaly</span><span class="op">)</span>, <span class="st">"anomalies\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; KDE-weighted method: 6 anomalies</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"MTT method:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">result_mtt</span><span class="op">$</span><span class="va">predictions</span><span class="op">$</span><span class="va">is_anomaly</span><span class="op">)</span>, <span class="st">"anomalies\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; MTT method: 9 anomalies</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="feature-contribution-analysis">Feature Contribution Analysis<a class="anchor" aria-label="anchor" href="#feature-contribution-analysis"></a>
+</h2>
+<p>Understand which features contribute most to a sample’s anomaly
+score:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Analyze feature contributions for specific samples</span></span>
+<span><span class="va">contributions</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/feature_contribution.html">feature_contribution</a></span><span class="op">(</span></span>
+<span>  <span class="va">model</span>, </span>
+<span>  sample_ids <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">42</span>, <span class="fl">107</span><span class="op">)</span>, </span>
+<span>  data <span class="op">=</span> <span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span>,</span>
+<span>  method <span class="op">=</span> <span class="st">"path"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Print results</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">contributions</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Feature Contribution Analysis</span></span>
+<span><span class="co">#&gt; =============================</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Sample 42 | Score: 0.634 </span></span>
+<span><span class="co">#&gt;   Sepal.Length: 26.6%</span></span>
+<span><span class="co">#&gt;   Petal.Length: 26.3%</span></span>
+<span><span class="co">#&gt;   Petal.Width: 23.7%</span></span>
+<span><span class="co">#&gt;   Sepal.Width: 23.4%</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Sample 107 | Score: 0.615 </span></span>
+<span><span class="co">#&gt;   Sepal.Length: 29.2%</span></span>
+<span><span class="co">#&gt;   Petal.Length: 28.0%</span></span>
+<span><span class="co">#&gt;   Petal.Width: 25.1%</span></span>
+<span><span class="co">#&gt;   Sepal.Width: 17.8%</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Summary (Top 4 features):</span></span>
+<span><span class="co">#&gt;   Sepal.Length: 27.9%</span></span>
+<span><span class="co">#&gt;   Petal.Length: 27.1%</span></span>
+<span><span class="co">#&gt;   Petal.Width: 24.4%</span></span>
+<span><span class="co">#&gt;   Sepal.Width: 20.6%</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="feature-distribution-visualization">Feature Distribution Visualization<a class="anchor" aria-label="anchor" href="#feature-distribution-visualization"></a>
+</h2>
+<div class="section level3">
+<h3 id="visualizing-single-anomaly">Visualizing Single Anomaly<a class="anchor" aria-label="anchor" href="#visualizing-single-anomaly"></a>
+</h3>
+<p>When you want to understand why a specific sample is anomalous:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Calculate contributions</span></span>
+<span><span class="va">contributions</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/feature_contribution.html">feature_contribution</a></span><span class="op">(</span><span class="va">model</span>, sample_ids <span class="op">=</span> <span class="fl">42</span>, data <span class="op">=</span> <span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Plot boxplots showing where the anomaly falls</span></span>
+<span><span class="fu"><a href="../reference/plot_feature_boxplot.html">plot_feature_boxplot</a></span><span class="op">(</span><span class="va">contributions</span>, <span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span>, sample_id <span class="op">=</span> <span class="fl">42</span>, top_n <span class="op">=</span> <span class="fl">4</span><span class="op">)</span></span></code></pre></div>
+<p><img src="isoForest_files/figure-html/boxplot_single-1.png" width="768" style="display: block; margin: auto;"></p>
+</div>
+<div class="section level3">
+<h3 id="visualizing-multiple-anomalies">Visualizing Multiple Anomalies<a class="anchor" aria-label="anchor" href="#visualizing-multiple-anomalies"></a>
+</h3>
+<p>When you want to see where all detected anomalies fall in the
+distributions:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Detect anomalies</span></span>
+<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_anomaly_threshold.html">set_anomaly_threshold</a></span><span class="op">(</span><span class="va">model</span>, method <span class="op">=</span> <span class="st">"mad"</span>, mad_multiplier <span class="op">=</span> <span class="fl">3</span><span class="op">)</span></span>
+<span><span class="va">anomaly_ids</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/which.html" class="external-link">which</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">predictions</span><span class="op">$</span><span class="va">is_anomaly</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Visualize all anomalies at once (no contribution_obj needed)</span></span>
+<span><span class="fu"><a href="../reference/plot_feature_boxplot.html">plot_feature_boxplot</a></span><span class="op">(</span></span>
+<span>  contribution_obj <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span>,</span>
+<span>  sample_id <span class="op">=</span> <span class="va">anomaly_ids</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p><img src="isoForest_files/figure-html/boxplot_multiple-1.png" width="768" style="display: block; margin: auto;"></p>
+</div>
+<div class="section level3">
+<h3 id="faceted-view-for-multiple-features">Faceted View for Multiple Features<a class="anchor" aria-label="anchor" href="#faceted-view-for-multiple-features"></a>
+</h3>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Faceted view - better for viewing many features</span></span>
+<span><span class="fu"><a href="../reference/plot_feature_boxplot_faceted.html">plot_feature_boxplot_faceted</a></span><span class="op">(</span></span>
+<span>  contribution_obj <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span>,</span>
+<span>  sample_id <span class="op">=</span> <span class="va">anomaly_ids</span>,</span>
+<span>  top_n <span class="op">=</span> <span class="fl">4</span>,</span>
+<span>  ncol <span class="op">=</span> <span class="fl">2</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p><img src="isoForest_files/figure-html/boxplot_faceted-1.png" width="768" style="display: block; margin: auto;"></p>
+<p><strong>Key Features:</strong></p>
+<ul>
+<li>
+<strong>Flexible Input</strong>: Works with or without
+<code>contribution_obj</code>
+</li>
+<li>
+<strong>Multiple Anomalies</strong>: <code>sample_id</code> can be a
+vector to highlight many points</li>
+<li>
+<strong>Auto-Optimization</strong>: Point size adjusts automatically
+when &gt;5 anomalies</li>
+<li>
+<strong>Smart Labels</strong>: Subtitle adapts based on number of
+anomalies</li>
+<li>
+<strong>Jitter Effect</strong>: All points use jitter to avoid
+overlap</li>
+</ul>
+</div>
+</div>
+<div class="section level2">
+<h2 id="basic-visualization">Basic Visualization<a class="anchor" aria-label="anchor" href="#basic-visualization"></a>
+</h2>
+<div class="section level3">
+<h3 id="heatmap">Heatmap<a class="anchor" aria-label="anchor" href="#heatmap"></a>
+</h3>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/isoForest.html">isoForest</a></span><span class="op">(</span><span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">2</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/anomaly_plot.html">anomaly_plot</a></span><span class="op">(</span><span class="va">result</span>, <span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">2</span><span class="op">]</span>, plot_type <span class="op">=</span> <span class="st">"heatmap"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="isoForest_files/figure-html/heatmap-1.png" width="576" style="display: block; margin: auto;"></p>
 </div>
-<div class="section level2">
-<h2 id="scatter">scatter<a class="anchor" aria-label="anchor" href="#scatter"></a>
-</h2>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="section level3">
+<h3 id="scatter-plot">Scatter Plot<a class="anchor" aria-label="anchor" href="#scatter-plot"></a>
+</h3>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/isoForest.html">isoForest</a></span><span class="op">(</span><span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">2</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/anomaly_plot.html">anomaly_plot</a></span><span class="op">(</span><span class="va">result</span>, <span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">2</span><span class="op">]</span>, plot_type <span class="op">=</span> <span class="st">"scatter"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="isoForest_files/figure-html/scatter-1.png" width="576" style="display: block; margin: auto;"></p>
+</div>
+</div>
+<div class="section level2">
+<h2 id="complete-workflow-example">Complete Workflow Example<a class="anchor" aria-label="anchor" href="#complete-workflow-example"></a>
+</h2>
+<p>Here’s a complete example combining all features:</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># 1. Train model</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/isoForest.html">isoForest</a></span><span class="op">(</span><span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># 2. Set threshold using robust method</span></span>
+<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_anomaly_threshold.html">set_anomaly_threshold</a></span><span class="op">(</span><span class="va">model</span>, method <span class="op">=</span> <span class="st">"mad"</span>, mad_multiplier <span class="op">=</span> <span class="fl">3</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># 3. Get anomaly IDs</span></span>
+<span><span class="va">anomaly_ids</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/which.html" class="external-link">which</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">predictions</span><span class="op">$</span><span class="va">is_anomaly</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Detected"</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">anomaly_ids</span><span class="op">)</span>, <span class="st">"anomalies\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Detected 18 anomalies</span></span>
+<span></span>
+<span><span class="co"># 4. Analyze top anomaly</span></span>
+<span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">anomaly_ids</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">top_anomaly</span> <span class="op">&lt;-</span> <span class="va">anomaly_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span></span>
+<span>  <span class="va">contributions</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/feature_contribution.html">feature_contribution</a></span><span class="op">(</span><span class="va">model</span>, sample_ids <span class="op">=</span> <span class="va">top_anomaly</span>, data <span class="op">=</span> <span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span><span class="op">)</span></span>
+<span>  </span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"\nTop anomaly (Sample"</span>, <span class="va">top_anomaly</span>, <span class="st">"):\n"</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">contributions</span><span class="op">$</span><span class="va">sample_1</span><span class="op">$</span><span class="va">contributions</span><span class="op">)</span></span>
+<span>  </span>
+<span>  <span class="co"># 5. Visualize</span></span>
+<span>  <span class="fu"><a href="../reference/plot_feature_boxplot_faceted.html">plot_feature_boxplot_faceted</a></span><span class="op">(</span><span class="va">contributions</span>, <span class="va">iris</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span>, sample_id <span class="op">=</span> <span class="va">top_anomaly</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Top anomaly (Sample 14 ):</span></span>
+<span><span class="co">#&gt; Sepal.Length  Sepal.Width Petal.Length  Petal.Width </span></span>
+<span><span class="co">#&gt;    0.2310127    0.2626582    0.2215190    0.2848101</span></span></code></pre></div>
+<p><img src="isoForest_files/figure-html/complete_workflow-1.png" width="768" style="display: block; margin: auto;"></p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

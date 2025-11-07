@@ -287,29 +287,40 @@ print.feature_contribution <- function(x, top_n = 5, ...) {
 #' @title Plot feature boxplot with all data points and anomaly highlighted
 #' @description
 #' Create boxplots for features with their contributions to anomaly scores.
-#' All data points are shown as small black dots, with the anomalous point
+#' All data points are shown as small black dots, with the anomalous point(s)
 #' highlighted in red (or custom color) for easy identification.
-#' @param contribution_obj A feature_contribution object from feature_contribution()
+#' Can work with or without a contribution object.
+#' @param contribution_obj A feature_contribution object from feature_contribution(), or NULL.
+#'   If NULL, you can specify multiple sample_ids to highlight multiple anomalies.
 #' @param data The original training data
-#' @param sample_id The sample ID to visualize (if NULL, uses the first sample in contribution_obj)
-#' @param top_n Number of top contributing features to display (default 5, NULL for all)
-#' @param highlight_color Color for the anomaly point (default "red")
-#' @param highlight_size Size of the anomaly point (default 3)
-#' @param highlight_shape Shape of the anomaly point (default 16 = filled circle, not used currently)
-#' @param show_contribution Whether to show contribution percentages in title (default TRUE)
+#' @param sample_id The sample ID(s) to visualize. Can be a single value or a vector.
+#'   - If contribution_obj is provided: only single value is used
+#'   - If contribution_obj is NULL: can be a vector to mark multiple anomalies
+#'   - If NULL and contribution_obj provided: uses first sample from contribution_obj
+#' @param top_n Number of top contributing features to display (default 5, NULL for all).
+#'   Only used when contribution_obj is provided.
+#' @param highlight_color Color for the anomaly point(s) (default "red")
+#' @param highlight_size Size of the anomaly point(s) (default 3).
+#'   Automatically adjusted to 1 when >5 anomalies are highlighted
+#' @param highlight_shape Shape of the anomaly point(s) (default 17, not used currently)
+#' @param show_contribution Whether to show contribution percentages in labels (default TRUE).
+#'   Only applies when contribution_obj is provided.
 #' @return A ggplot object
 #' @examples
-#' # Train model and calculate contributions
+#' # With contribution object
 #' model <- isoForest(iris[1:4])
 #' contributions <- feature_contribution(model, sample_ids = 42, data = iris[1:4])
-#' 
-#' # Plot boxplots with all data points and anomaly highlighted
 #' plot_feature_boxplot(contributions, iris[1:4], sample_id = 42)
 #' 
-#' # Show all features
-#' plot_feature_boxplot(contributions, iris[1:4], sample_id = 42, top_n = NULL)
+#' # Without contribution object - mark multiple anomalies
+#' anomaly_ids <- c(42, 107, 119)
+#' plot_feature_boxplot(contribution_obj = NULL, data = iris[1:4], sample_id = anomaly_ids)
+#' 
+#' # Many anomalies (auto-adjust size)
+#' many_ids <- c(42, 61, 99, 107, 119, 132, 135)
+#' plot_feature_boxplot(NULL, iris[1:4], many_ids)
 #' @export
-plot_feature_boxplot <- function(contribution_obj,
+plot_feature_boxplot <- function(contribution_obj = NULL,
                                  data,
                                  sample_id = NULL,
                                  top_n = 5,
@@ -324,86 +335,147 @@ plot_feature_boxplot <- function(contribution_obj,
   }
   
   # Validate inputs
-  if (!inherits(contribution_obj, "feature_contribution")) {
-    stop("contribution_obj must be a feature_contribution object")
+  if (!is.null(contribution_obj) && !inherits(contribution_obj, "feature_contribution")) {
+    stop("contribution_obj must be a feature_contribution object or NULL")
   }
   
   data <- as.data.frame(data)
   
-  # Get sample results
-  sample_results <- contribution_obj[grepl("^sample_", names(contribution_obj))]
-  if (length(sample_results) == 0) {
-    stop("No sample results found in contribution object")
-  }
-  
-  # Determine which sample to plot
-  if (is.null(sample_id)) {
-    sample_result <- sample_results[[1]]
-    sample_id <- sample_result$sample_id
-    message("Using sample_id: ", sample_id)
-  } else {
-    sample_key <- paste0("sample_", sample_id)
-    if (!sample_key %in% names(sample_results)) {
-      stop("Sample ID ", sample_id, " not found in contribution object")
+  # Branch: With or without contribution_obj
+  if (!is.null(contribution_obj)) {
+    # ==== MODE 1: With contribution object ====
+    # Get sample results
+    sample_results <- contribution_obj[grepl("^sample_", names(contribution_obj))]
+    if (length(sample_results) == 0) {
+      stop("No sample results found in contribution object")
     }
-    sample_result <- sample_results[[sample_key]]
-  }
-  
-  # Validate sample_id
-  if (sample_id < 1 || sample_id > nrow(data)) {
-    stop("sample_id out of range")
-  }
-  
-  # Get contributions and sort
-  contributions <- sample_result$contributions
-  contributions_sorted <- sort(contributions, decreasing = TRUE)
-  
-  # Select features to display
-  if (!is.null(top_n)) {
-    top_n <- min(top_n, length(contributions_sorted))
-    features_to_plot <- names(contributions_sorted)[1:top_n]
-  } else {
-    features_to_plot <- names(contributions_sorted)
-  }
-  
-  # Check if features exist in data
-  features_to_plot <- features_to_plot[features_to_plot %in% colnames(data)]
-  if (length(features_to_plot) == 0) {
-    stop("No valid features found in data")
-  }
-  
-  # Prepare data for plotting
-  plot_data_list <- lapply(features_to_plot, function(feat) {
-    values <- unname(data[[feat]])  # Remove row names to avoid warning
-    anomaly_value <- data[sample_id, feat]
-    contribution_pct <- contributions[feat] * 100
     
-    # Mark which points are anomalies
-    is_anomaly_point <- seq_along(values) == sample_id
+    # Determine which sample to plot
+    if (is.null(sample_id)) {
+      sample_result <- sample_results[[1]]
+      sample_id <- sample_result$sample_id
+      message("Using sample_id: ", sample_id)
+    } else {
+      if (length(sample_id) > 1) {
+        warning("Multiple sample_ids provided, but only the first one will be used when contribution_obj is provided")
+        sample_id <- sample_id[1]
+      }
+      sample_key <- paste0("sample_", sample_id)
+      if (!sample_key %in% names(sample_results)) {
+        stop("Sample ID ", sample_id, " not found in contribution object")
+      }
+      sample_result <- sample_results[[sample_key]]
+    }
     
-    data.frame(
-      feature = feat,
-      value = values,
-      contribution = contribution_pct,
-      is_anomaly = is_anomaly_point,
-      stringsAsFactors = FALSE,
-      row.names = NULL
-    )
-  })
-  
-  plot_data <- do.call(rbind, plot_data_list)
-  rownames(plot_data) <- NULL  # Remove row names from combined data
-  
-  # Create feature labels with contributions if requested
-  if (show_contribution) {
-    feature_labels <- sapply(features_to_plot, function(f) {
-      sprintf("%s\n(%.1f%%)", f, contributions[f] * 100)
+    # Validate sample_id
+    if (sample_id < 1 || sample_id > nrow(data)) {
+      stop("sample_id out of range")
+    }
+    
+    # Get contributions and sort
+    contributions <- sample_result$contributions
+    contributions_sorted <- sort(contributions, decreasing = TRUE)
+    
+    # Select features to display
+    if (!is.null(top_n)) {
+      top_n <- min(top_n, length(contributions_sorted))
+      features_to_plot <- names(contributions_sorted)[1:top_n]
+    } else {
+      features_to_plot <- names(contributions_sorted)
+    }
+    
+    # Check if features exist in data
+    features_to_plot <- features_to_plot[features_to_plot %in% colnames(data)]
+    if (length(features_to_plot) == 0) {
+      stop("No valid features found in data")
+    }
+    
+    # Prepare data for plotting
+    plot_data_list <- lapply(features_to_plot, function(feat) {
+      values <- unname(data[[feat]])
+      is_anomaly_point <- seq_along(values) == sample_id
+      
+      data.frame(
+        feature = feat,
+        value = values,
+        contribution = contributions[feat] * 100,
+        is_anomaly = is_anomaly_point,
+        stringsAsFactors = FALSE,
+        row.names = NULL
+      )
     })
-    plot_data$feature <- factor(plot_data$feature, 
-                                levels = features_to_plot,
-                                labels = feature_labels)
+    
+    plot_data <- do.call(rbind, plot_data_list)
+    rownames(plot_data) <- NULL
+    
+    # Create feature labels with contributions if requested
+    if (show_contribution) {
+      feature_labels <- sapply(features_to_plot, function(f) {
+        sprintf("%s\n(%.1f%%)", f, contributions[f] * 100)
+      })
+      plot_data$feature <- factor(plot_data$feature, 
+                                  levels = features_to_plot,
+                                  labels = feature_labels)
+    } else {
+      plot_data$feature <- factor(plot_data$feature, levels = features_to_plot)
+    }
+    
+    # Title and subtitle
+    plot_title <- sprintf("Feature Distribution with Anomaly Point (Sample #%d)", sample_id)
+    plot_subtitle <- sprintf("Anomaly Score: %.3f | Red dot indicates anomalous value", 
+                            sample_result$score)
+    
   } else {
+    # ==== MODE 2: Without contribution object ====
+    if (is.null(sample_id)) {
+      stop("sample_id must be provided when contribution_obj is NULL")
+    }
+    
+    # Validate sample_id
+    if (any(sample_id < 1) || any(sample_id > nrow(data))) {
+      stop("sample_id out of range")
+    }
+    
+    # Use all features
+    features_to_plot <- colnames(data)
+    
+    # Auto-adjust highlight size if too many anomalies
+    n_anomalies <- length(sample_id)
+    if (n_anomalies > 5) {
+      highlight_size <- 1  # Same as normal points
+      message(sprintf("Detected %d anomalies (>5), adjusting point size to 1", n_anomalies))
+    }
+    
+    # Prepare data for plotting
+    plot_data_list <- lapply(features_to_plot, function(feat) {
+      values <- unname(data[[feat]])
+      is_anomaly_point <- seq_along(values) %in% sample_id
+      
+      data.frame(
+        feature = feat,
+        value = values,
+        is_anomaly = is_anomaly_point,
+        stringsAsFactors = FALSE,
+        row.names = NULL
+      )
+    })
+    
+    plot_data <- do.call(rbind, plot_data_list)
+    rownames(plot_data) <- NULL
     plot_data$feature <- factor(plot_data$feature, levels = features_to_plot)
+    
+    # Title and subtitle
+    if (n_anomalies == 1) {
+      plot_title <- sprintf("Feature Distribution with Anomaly Point (Sample #%d)", sample_id)
+      plot_subtitle <- sprintf("Red dot indicates anomalous value")
+    } else if (n_anomalies <= 5) {
+      plot_title <- sprintf("Feature Distribution with %d Anomaly Points", n_anomalies)
+      plot_subtitle <- sprintf("Samples: %s | Red dots indicate anomalous values", 
+                              paste(sample_id, collapse = ", "))
+    } else {
+      plot_title <- sprintf("Feature Distribution with %d Anomaly Points", n_anomalies)
+      plot_subtitle <- sprintf("Red dots indicate anomalous values")
+    }
   }
   
   # Separate data for normal and anomaly points
@@ -423,12 +495,12 @@ plot_feature_boxplot <- function(contribution_obj,
                        ggplot2::aes(x = feature, y = value),
                        color = highlight_color,
                        size = highlight_size,
-                       shape = 16) +
+                       shape = 16,
+                       position = ggplot2::position_jitter(width = 0.2, height = 0)) +
     ggplot2::labs(
-      title = sprintf("Feature Distribution with Anomaly Point (Sample #%d)", sample_id),
-      subtitle = sprintf("Anomaly Score: %.3f | Red dot indicates anomalous value", 
-                        sample_result$score),
-      x = if(show_contribution) "Feature (Contribution %)" else "Feature",
+      title = plot_title,
+      subtitle = plot_subtitle,
+      x = if(!is.null(contribution_obj) && show_contribution) "Feature (Contribution %)" else "Feature",
       y = "Value"
     ) +
     ggplot2::theme_minimal() +
@@ -445,30 +517,40 @@ plot_feature_boxplot <- function(contribution_obj,
 #' @title Plot multiple feature boxplots (faceted) with all data points
 #' @description
 #' Create faceted boxplots for better comparison when many features are involved.
-#' All data points are shown as small black dots, with the anomalous point
+#' All data points are shown as small black dots, with the anomalous point(s)
 #' highlighted in red for easy identification. This is useful when top_n is 
-#' large or you want to see all features.
-#' @param contribution_obj A feature_contribution object from feature_contribution()
+#' large or you want to see all features. Can work with or without a contribution object.
+#' @param contribution_obj A feature_contribution object from feature_contribution(), or NULL.
+#'   If NULL, you can specify multiple sample_ids to highlight multiple anomalies.
 #' @param data The original training data
-#' @param sample_id The sample ID to visualize (if NULL, uses the first sample)
+#' @param sample_id The sample ID(s) to visualize. Can be a single value or a vector.
+#'   - If contribution_obj is provided: only single value is used
+#'   - If contribution_obj is NULL: can be a vector to mark multiple anomalies
+#'   - If NULL and contribution_obj provided: uses first sample from contribution_obj
 #' @param top_n Number of top contributing features to display (default 8, NULL for all)
 #' @param ncol Number of columns in facet grid (default 2)
-#' @param highlight_color Color for the anomaly point (default "red")
+#' @param highlight_color Color for the anomaly point(s) (default "red")
+#' @param highlight_size Size of the anomaly point(s) (default 3).
+#'   Automatically adjusted to 1 when >5 anomalies are highlighted
 #' @param scales Should scales be fixed ("fixed") or free ("free", "free_y")? Default "free_y"
 #' @return A ggplot object
 #' @examples
+#' # With contribution object
 #' model <- isoForest(iris[1:4])
 #' contributions <- feature_contribution(model, sample_ids = 42, data = iris[1:4])
-#' 
-#' # Faceted view with all data points
 #' plot_feature_boxplot_faceted(contributions, iris[1:4], sample_id = 42)
+#' 
+#' # Without contribution object - mark multiple anomalies
+#' anomaly_ids <- c(42, 107, 119, 132, 135)
+#' plot_feature_boxplot_faceted(NULL, iris[1:4], sample_id = anomaly_ids)
 #' @export
-plot_feature_boxplot_faceted <- function(contribution_obj,
+plot_feature_boxplot_faceted <- function(contribution_obj = NULL,
                                         data,
                                         sample_id = NULL,
                                         top_n = 8,
                                         ncol = 2,
                                         highlight_color = "red",
+                                        highlight_size = 3,
                                         scales = "free_y") {
   
   # Check for ggplot2
@@ -477,77 +559,147 @@ plot_feature_boxplot_faceted <- function(contribution_obj,
   }
   
   # Validate inputs
-  if (!inherits(contribution_obj, "feature_contribution")) {
-    stop("contribution_obj must be a feature_contribution object")
+  if (!is.null(contribution_obj) && !inherits(contribution_obj, "feature_contribution")) {
+    stop("contribution_obj must be a feature_contribution object or NULL")
   }
   
   data <- as.data.frame(data)
   
-  # Get sample results
-  sample_results <- contribution_obj[grepl("^sample_", names(contribution_obj))]
-  if (length(sample_results) == 0) {
-    stop("No sample results found in contribution object")
-  }
-  
-  # Determine which sample to plot
-  if (is.null(sample_id)) {
-    sample_result <- sample_results[[1]]
-    sample_id <- sample_result$sample_id
-    message("Using sample_id: ", sample_id)
-  } else {
-    sample_key <- paste0("sample_", sample_id)
-    if (!sample_key %in% names(sample_results)) {
-      stop("Sample ID ", sample_id, " not found in contribution object")
+  # Branch: With or without contribution_obj
+  if (!is.null(contribution_obj)) {
+    # ==== MODE 1: With contribution object ====
+    # Get sample results
+    sample_results <- contribution_obj[grepl("^sample_", names(contribution_obj))]
+    if (length(sample_results) == 0) {
+      stop("No sample results found in contribution object")
     }
-    sample_result <- sample_results[[sample_key]]
-  }
-  
-  # Validate sample_id
-  if (sample_id < 1 || sample_id > nrow(data)) {
-    stop("sample_id out of range")
-  }
-  
-  # Get contributions and sort
-  contributions <- sample_result$contributions
-  contributions_sorted <- sort(contributions, decreasing = TRUE)
-  
-  # Select features to display
-  if (!is.null(top_n)) {
-    top_n <- min(top_n, length(contributions_sorted))
-    features_to_plot <- names(contributions_sorted)[1:top_n]
-  } else {
-    features_to_plot <- names(contributions_sorted)
-  }
-  
-  # Check if features exist in data
-  features_to_plot <- features_to_plot[features_to_plot %in% colnames(data)]
-  if (length(features_to_plot) == 0) {
-    stop("No valid features found in data")
-  }
-  
-  # Prepare data for plotting - include all data points with anomaly marking
-  plot_data_list <- lapply(features_to_plot, function(feat) {
-    values <- unname(data[[feat]])
-    # Mark which points are anomalies
-    is_anomaly_point <- seq_along(values) == sample_id
     
-    data.frame(
-      feature = sprintf("%s (%.1f%%)", feat, contributions[feat] * 100),
-      value = values,
-      is_anomaly = is_anomaly_point,
-      stringsAsFactors = FALSE,
-      row.names = NULL
-    )
-  })
-  
-  plot_data <- do.call(rbind, plot_data_list)
-  rownames(plot_data) <- NULL  # Remove row names from combined data
-  
-  # Order features by contribution
-  feature_order <- sprintf("%s (%.1f%%)", features_to_plot, 
-                          sapply(features_to_plot, function(f) contributions[f] * 100))
-  feature_order <- feature_order[order(contributions[features_to_plot], decreasing = TRUE)]
-  plot_data$feature <- factor(plot_data$feature, levels = feature_order)
+    # Determine which sample to plot
+    if (is.null(sample_id)) {
+      sample_result <- sample_results[[1]]
+      sample_id <- sample_result$sample_id
+      message("Using sample_id: ", sample_id)
+    } else {
+      if (length(sample_id) > 1) {
+        warning("Multiple sample_ids provided, but only the first one will be used when contribution_obj is provided")
+        sample_id <- sample_id[1]
+      }
+      sample_key <- paste0("sample_", sample_id)
+      if (!sample_key %in% names(sample_results)) {
+        stop("Sample ID ", sample_id, " not found in contribution object")
+      }
+      sample_result <- sample_results[[sample_key]]
+    }
+    
+    # Validate sample_id
+    if (sample_id < 1 || sample_id > nrow(data)) {
+      stop("sample_id out of range")
+    }
+    
+    # Get contributions and sort
+    contributions <- sample_result$contributions
+    contributions_sorted <- sort(contributions, decreasing = TRUE)
+    
+    # Select features to display
+    if (!is.null(top_n)) {
+      top_n <- min(top_n, length(contributions_sorted))
+      features_to_plot <- names(contributions_sorted)[1:top_n]
+    } else {
+      features_to_plot <- names(contributions_sorted)
+    }
+    
+    # Check if features exist in data
+    features_to_plot <- features_to_plot[features_to_plot %in% colnames(data)]
+    if (length(features_to_plot) == 0) {
+      stop("No valid features found in data")
+    }
+    
+    # Prepare data for plotting
+    plot_data_list <- lapply(features_to_plot, function(feat) {
+      values <- unname(data[[feat]])
+      is_anomaly_point <- seq_along(values) == sample_id
+      
+      data.frame(
+        feature = sprintf("%s (%.1f%%)", feat, contributions[feat] * 100),
+        value = values,
+        is_anomaly = is_anomaly_point,
+        stringsAsFactors = FALSE,
+        row.names = NULL
+      )
+    })
+    
+    plot_data <- do.call(rbind, plot_data_list)
+    rownames(plot_data) <- NULL
+    
+    # Order features by contribution
+    feature_order <- sprintf("%s (%.1f%%)", features_to_plot, 
+                            sapply(features_to_plot, function(f) contributions[f] * 100))
+    feature_order <- feature_order[order(contributions[features_to_plot], decreasing = TRUE)]
+    plot_data$feature <- factor(plot_data$feature, levels = feature_order)
+    
+    # Title and subtitle
+    plot_title <- sprintf("Feature Distributions with Anomaly Point (Sample #%d)", sample_id)
+    plot_subtitle <- sprintf("Anomaly Score: %.3f | Red dot indicates anomalous value", 
+                            sample_result$score)
+    
+  } else {
+    # ==== MODE 2: Without contribution object ====
+    if (is.null(sample_id)) {
+      stop("sample_id must be provided when contribution_obj is NULL")
+    }
+    
+    # Validate sample_id
+    if (any(sample_id < 1) || any(sample_id > nrow(data))) {
+      stop("sample_id out of range")
+    }
+    
+    # Use all features or top_n
+    all_features <- colnames(data)
+    if (!is.null(top_n)) {
+      top_n <- min(top_n, length(all_features))
+      features_to_plot <- all_features[1:top_n]
+    } else {
+      features_to_plot <- all_features
+    }
+    
+    # Auto-adjust highlight size if too many anomalies
+    n_anomalies <- length(sample_id)
+    if (n_anomalies > 5) {
+      highlight_size <- 1  # Same as normal points
+      message(sprintf("Detected %d anomalies (>5), adjusting point size to 1", n_anomalies))
+    }
+    
+    # Prepare data for plotting
+    plot_data_list <- lapply(features_to_plot, function(feat) {
+      values <- unname(data[[feat]])
+      is_anomaly_point <- seq_along(values) %in% sample_id
+      
+      data.frame(
+        feature = feat,
+        value = values,
+        is_anomaly = is_anomaly_point,
+        stringsAsFactors = FALSE,
+        row.names = NULL
+      )
+    })
+    
+    plot_data <- do.call(rbind, plot_data_list)
+    rownames(plot_data) <- NULL
+    plot_data$feature <- factor(plot_data$feature, levels = features_to_plot)
+    
+    # Title and subtitle
+    if (n_anomalies == 1) {
+      plot_title <- sprintf("Feature Distributions with Anomaly Point (Sample #%d)", sample_id)
+      plot_subtitle <- sprintf("Red dot indicates anomalous value")
+    } else if (n_anomalies <= 5) {
+      plot_title <- sprintf("Feature Distributions with %d Anomaly Points", n_anomalies)
+      plot_subtitle <- sprintf("Samples: %s | Red dots indicate anomalous values", 
+                              paste(sample_id, collapse = ", "))
+    } else {
+      plot_title <- sprintf("Feature Distributions with %d Anomaly Points", n_anomalies)
+      plot_subtitle <- sprintf("Red dots indicate anomalous values")
+    }
+  }
   
   # Separate normal and anomaly points
   normal_points <- plot_data[!plot_data$is_anomaly, ]
@@ -563,13 +715,13 @@ plot_feature_boxplot_faceted <- function(contribution_obj,
                        position = ggplot2::position_jitter(width = 0.2, height = 0)) +
     ggplot2::geom_point(data = anomaly_points,
                        color = highlight_color,
-                       size = 3,
-                       shape = 16) +
+                       size = highlight_size,
+                       shape = 16,
+                       position = ggplot2::position_jitter(width = 0.2, height = 0)) +
     ggplot2::facet_wrap(~ feature, scales = scales, ncol = ncol) +
     ggplot2::labs(
-      title = sprintf("Feature Distributions with Anomaly Point (Sample #%d)", sample_id),
-      subtitle = sprintf("Anomaly Score: %.3f | Red dot indicates anomalous value", 
-                        sample_result$score),
+      title = plot_title,
+      subtitle = plot_subtitle,
       x = NULL,
       y = "Value"
     ) +
