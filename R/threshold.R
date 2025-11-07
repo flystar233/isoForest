@@ -4,16 +4,13 @@
 #' based on anomaly scores from isoForest.
 #' @param object An isoForest model object
 #' @param method The method to use for threshold setting. Options include:
-#'   "contamination" (default), "quantile", "iqr", "zscore", "mad", "karcher", "mtt", "manual"
+#'   "contamination" (default), "quantile", "iqr", "zscore", "mad", "kde_weighted", "mtt", "manual"
 #' @param contamination The expected proportion of outliers (for contamination method). Default is 0.05
 #' @param quantile_threshold The quantile threshold (for quantile method). Default is 0.95
 #' @param iqr_multiplier The IQR multiplier (for iqr method). Default is 1.5
 #' @param zscore_threshold The z-score threshold (for zscore method). Default is 2
 #' @param mad_multiplier The MAD multiplier (for mad method). Default is 3
-#' @param karcher_multiplier The multiplier for standard deviation (for karcher method). Default is 1
-#' @param karcher_method Method for Karcher mean computation: "simple" or "complex". Default is "complex"
-#' @param karcher_max_iter Maximum iterations for Karcher mean computation. Default is 100
-#' @param karcher_tol Convergence tolerance for Karcher mean. Default is 1e-6
+#' @param kde_multiplier The multiplier for standard deviation (for kde_weighted method). Default is 3
 #' @param mtt_alpha Significance level for MTT (Modified Thompson Tau) test. Default is 0.05
 #' @param mtt_max_iter Maximum iterations for iterative outlier removal in MTT. Default is 30
 #' @param manual_threshold The manual threshold value (for manual method)
@@ -42,8 +39,8 @@
 #' # Method 5: MAD-based (robust)
 #' result5 <- set_anomaly_threshold(model, method = "mad", mad_multiplier = 3)
 #' 
-#' # Method 6: Karcher mean-based (Riemannian center of mass)
-#' result6 <- set_anomaly_threshold(model, method = "karcher", karcher_multiplier = 3)
+#' # Method 6: KDE-weighted (density-weighted robust mean)
+#' result6 <- set_anomaly_threshold(model, method = "kde_weighted", kde_multiplier = 3)
 #' 
 #' # Method 7: MTT-based (Modified Thompson Tau test, good for small samples)
 #' result7 <- set_anomaly_threshold(model, method = "mtt", mtt_alpha = 0.05)
@@ -62,10 +59,7 @@ set_anomaly_threshold <- function(object,
                                   iqr_multiplier = 1.5,
                                   zscore_threshold = 2,
                                   mad_multiplier = 3,
-                                  karcher_multiplier = 3,
-                                  karcher_method = "complex",
-                                  karcher_max_iter = 100,
-                                  karcher_tol = 1e-6,
+                                  kde_multiplier = 3,
                                   mtt_alpha = 0.05,
                                   mtt_max_iter = 30,
                                   manual_threshold = NULL) {
@@ -75,7 +69,7 @@ set_anomaly_threshold <- function(object,
     stop("Object must be an isoForest model")
   }
   
-  method <- match.arg(method, c("contamination", "quantile", "iqr", "zscore", "mad", "karcher", "mtt", "manual"))
+  method <- match.arg(method, c("contamination", "quantile", "iqr", "zscore", "mad", "kde_weighted", "mtt", "manual"))
   
   scores <- object$scores$anomaly_score
   n_samples <- length(scores)
@@ -115,47 +109,43 @@ set_anomaly_threshold <- function(object,
       median_score + mad_multiplier * mad_score
     },
     
-      "karcher" = {
-        # Compute Karcher mean (Frechet mean / Riemannian center of mass)
-        # Following the PyOD KARCH implementation
+      "kde_weighted" = {
+        # Compute KDE-weighted robust mean (density-weighted center)
+        # Uses kernel density estimation to weight points by local density
         
-        # Check if we have enough data for complex method
         n <- length(scores)
-        use_complex <- (karcher_method == "complex" && n >= 3)
         
-        if (use_complex) {
-          # Complex method: use KDE + element-wise multiplication
-          # Normalize scores to [0, 1] for KDE
-          scores_norm <- (scores - min(scores)) / (max(scores) - min(scores))
-          
-          # Generate KDE of normalized scores
-          kde_result <- gen_kde(scores_norm, 0, 1, n)
-          
-          # Element-wise multiplication (weighted by KDE density)
-          vals <- kde_result * sort(scores_norm)
-          
-          # Compute Frechet mean
-          karcher_mean <- compute_karcher_mean(vals, 
-                                               max_iter = karcher_max_iter, 
-                                               tol = karcher_tol)
-          
-          # Denormalize back to original scale
-          karcher_mean <- karcher_mean * (max(scores) - min(scores)) + min(scores)
-        } else {
-          # Simple method: directly compute on scores
-          karcher_mean <- compute_karcher_mean(scores, 
-                                               max_iter = karcher_max_iter, 
-                                               tol = karcher_tol)
+        if (n < 3) {
+          stop("KDE-weighted method requires at least 3 samples")
         }
         
-        # Get mean of Karcher mean dimensions
-        limit_center <- mean(karcher_mean, na.rm = TRUE)
+        # Normalize scores to [0, 1] for KDE
+        scores_norm <- (scores - min(scores)) / (max(scores) - min(scores))
+        sorted_scores_norm <- sort(scores_norm)
         
-        # Use standard deviation as scale (following PyOD implementation)
+        # Generate KDE object
+        kde <- stats::density(scores_norm, kernel = "gaussian", 
+                             n = n, from = 0, to = 1)
+        
+        # Interpolate KDE density at actual sorted data points
+        kde_at_points <- approx(x = kde$x, 
+                                y = kde$y, 
+                                xout = sorted_scores_norm, 
+                                rule = 2)$y
+        
+        # Element-wise multiplication (weighted by KDE density)
+        vals <- kde_at_points * sorted_scores_norm
+        
+        # Compute density-weighted mean (correct weighted average)
+        kde_weighted_mean <- sum(vals, na.rm = TRUE) / sum(kde_at_points, na.rm = TRUE)
+        # Denormalize back to original scale
+        kde_weighted_mean <- kde_weighted_mean * (max(scores) - min(scores)) + min(scores)
+        
+        # Use standard deviation as scale
         scale <- stats::sd(scores, na.rm = TRUE)
         
-        # Set threshold: mean(karcher_mean) + multiplier * std
-        limit_center + karcher_multiplier * scale
+        # Set threshold: kde_weighted_mean + multiplier * std
+        kde_weighted_mean + kde_multiplier * scale
       },
     
     "mtt" = {
@@ -266,59 +256,6 @@ is_anomaly <- function(object, contamination = 0.05) {
   threshold <- stats::quantile(scores, 1 - contamination, na.rm = TRUE)
   return(scores > threshold)
 }
-
-#' @title Compute Karcher Mean (Riemannian Center of Mass)
-#' @description
-#' Computes the Karcher mean (also known as Fréchet mean) of a set of values.
-#' This is a robust estimator that minimizes the sum of squared distances.
-#' For 1D data, this is computed iteratively using weighted averaging.
-#' @param x Numeric vector of values
-#' @param max_iter Maximum number of iterations. Default is 100
-#' @param tol Convergence tolerance. Default is 1e-6
-#' @param weights Optional weights for each observation
-#' @return The Karcher mean value
-#' @references
-#' Pennec, X. (2006). Intrinsic statistics on Riemannian manifolds: 
-#' Basic tools for geometric measurements. Journal of Mathematical Imaging and Vision, 25(1), 127-154.
-#' @keywords internal
-#' @title Generate Kernel Density Estimation
-#' @description
-#' Generates Kernel Density Estimation (KDE) for input data using Gaussian kernel.
-#' This is used in the complex Karcher mean computation.
-#' @param x Input data (scores)
-#' @param lb Lower bound for KDE evaluation points
-#' @param ub Upper bound for KDE evaluation points
-#' @param num_points Number of evaluation points
-#' @return KDE values at evaluation points
-#' @keywords internal
-gen_kde <- function(x, lb, ub, num_points) {
-  # Generate Kernel Density Estimation using Gaussian kernel
-  kde <- stats::density(x, kernel = "gaussian", n = num_points, 
-                       from = lb, to = ub)
-  kde$y
-}
-
-compute_karcher_mean <- function(x, max_iter = 100, tol = 1e-6, weights = NULL) {
-  # Compute Frechet mean (Karcher mean) in Euclidean space
-  # For Euclidean space, this is simply the weighted arithmetic mean
-  
-  # Convert to vector if matrix
-  x_vec <- if (is.matrix(x)) as.vector(x) else x
-  x_vec <- x_vec[!is.na(x_vec)]
-  
-  n <- length(x_vec)
-  if (n == 0) stop("No valid data points for Karcher mean computation")
-  if (n == 1) return(x_vec[1])
-  
-  # Use uniform weights if not provided
-  if (is.null(weights)) {
-    weights <- rep(1, n)
-  }
-  
-  # Compute weighted mean (Frechet mean in Euclidean space)
-  sum(weights * x_vec) / sum(weights)
-}
-
 #' @title Compute Modified Thompson Tau (MTT) Threshold
 #' @description
 #' Implements the Modified Thompson Tau test for outlier detection.

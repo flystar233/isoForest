@@ -27,7 +27,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-This vignette provides detailed explanations of four threshold determination methods implemented in the isoForest package: Z-score, MAD, Karcher, and MTT.
+This vignette provides detailed explanations of four threshold determination methods implemented in the isoForest package: Z-score, MAD, KDE-Weighted, and MTT.
 
 # Z-score Method
 
@@ -191,117 +191,99 @@ result <- set_anomaly_threshold(model, method = "mad", mad_multiplier = 4)
 result <- set_anomaly_threshold(model, method = "mad", mad_multiplier = 2)
 ```
 
-# Karcher Method
+# KDE-Weighted Method
 
 ## Principle
 
-The Karcher method is based on Riemannian geometry, computing the Karcher mean (Fréchet mean or Riemannian center of mass), a geometric center defined on manifolds.
+The KDE-Weighted method uses kernel density estimation to compute a density-weighted robust mean. Points in high-density regions (normal data) receive higher weights, while points in low-density regions (potential outliers) receive lower weights.
 
 ## Formula
 
-**Karcher mean definition:**
+**Density-weighted mean definition:**
 
-The Karcher mean minimizes:
+The weighted mean using KDE densities:
 
 ```
-f(x) = Σ d²(x_i, x)
+μ_w = Σ(w_i × x_i) / Σw_i
 ```
 
-Where d(·,·) is the distance metric on the manifold (Euclidean distance in Euclidean space).
+Where w_i = KDE density at point x_i (weight based on local density).
 
-**In 1D Euclidean space:**
+**Intuition:**
 
-For 1D data (anomaly scores), Karcher mean reduces to weighted arithmetic mean.
+High-density points (normal data cluster) dominate the mean, while low-density points (outliers) have minimal influence.
 
-**Threshold (complex mode):**
+**Threshold:**
 
 ```
 1. Normalize: scores_norm = (scores - min) / (max - min)
 2. Compute KDE: kde = KDE(scores_norm)
-3. Weighted vector: vals = kde ⊙ sort(scores_norm)
-4. Karcher mean: karcher_mean = weighted_mean(vals)
-5. Denormalize: karcher_mean = karcher_mean × (max - min) + min
-6. Threshold = mean(karcher_mean) + k × σ
-```
-
-**Threshold (simple mode):**
-
-```
-1. Karcher mean: karcher_mean = weighted_mean(scores)
-2. Threshold = mean(karcher_mean) + k × σ
+3. Get density weights: kde_weights = kde(sorted_scores_norm)
+4. Weighted vector: vals = kde_weights ⊙ sorted_scores_norm
+5. Density-weighted mean: μ_w = sum(vals) / sum(kde_weights)
+6. Denormalize: μ_w = μ_w × (max - min) + min
+7. Threshold = μ_w + k × σ
 ```
 
 Where:
 - k = multiplier (default: 3)
 - σ = standard deviation of scores
 
-## Workflow (Complex Mode)
+## Workflow
 
 1. Normalize scores to [0, 1]
 2. Estimate probability density using KDE
-3. Element-wise multiplication of KDE and sorted normalized scores
-4. Compute weighted average (Karcher mean)
+3. Interpolate KDE density at actual data points (get weights)
+4. Compute density-weighted average: Σ(weight × score) / Σweight
 5. Denormalize back to original scale
 6. Use SD as scale measure
-7. Set threshold = mean(karcher_mean) + k × σ
+7. Set threshold = weighted_mean + k × σ
 
 ## Core Concepts
 
-**Why Karcher mean?**
+**Why density weighting?**
 
-1. Geometric center: True center on manifolds
-2. Distribution-aware: KDE weighting considers data distribution
-3. Robustness: Resistance to extremes (between mean and median)
+1. Data-aware: Points in dense regions (normal data) get higher influence
+2. Outlier-resistant: Sparse regions (anomalies) get lower influence
+3. Adaptive: Automatically adjusts to data distribution
 
-**Relationship to other centers:**
+**Comparison with other robust centers:**
 
 ```
-- Arithmetic mean: minimizes Σ(x_i - c)² (L2 distance)
-- Median: minimizes Σ|x_i - c| (L1 distance)
-- Karcher mean: minimizes Σd²(x_i, c) (manifold distance)
+- Arithmetic mean: Equal weights for all points
+- Median: 50% quantile, ignores distribution shape
+- Density-weighted: Adaptive weights based on local density
 ```
 
 ## Advantages
 
-- Geometric intuition from Riemannian geometry
-- Distribution-aware (complex mode with KDE)
-- Flexible (simple and complex modes)
+- Density-aware: Automatically weights by data distribution
+- Robust: Reduces influence of outliers via low-density weighting
 - Good performance on heavy-tailed distributions
 
 ## Limitations
 
-- Computationally complex (complex mode requires KDE)
-- Parameter-sensitive (mode and multiplier)
-- Less intuitive than MAD
+- Computationally expensive (requires KDE)
+- Parameter-sensitive (multiplier)
+- KDE bandwidth selection can affect results
 
 ## Usage
 
 **Suitable for:**
 - Heavy-tailed distributions
 - Extreme outliers present
-- Distribution features matter
-- Large datasets (complex mode)
+- Distribution features important
 
 **Example:**
-```{r karcher-example, eval=FALSE}
-# Complex mode (default, recommended for large datasets)
-result <- set_anomaly_threshold(model, method = "karcher", 
-                                karcher_method = "complex",
-                                karcher_multiplier = 3)
-
-# Simple mode (for small datasets)
-result <- set_anomaly_threshold(model, method = "karcher", 
-                                karcher_method = "simple",
-                                karcher_multiplier = 3)
+```{r kde-weighted-example, eval=FALSE}
+# Standard usage (recommended)
+result <- set_anomaly_threshold(model, method = "kde_weighted", 
+                                kde_multiplier = 3)
 
 # Adjust sensitivity
-result <- set_anomaly_threshold(model, method = "karcher", 
-                                karcher_multiplier = 4)  # More conservative
+result <- set_anomaly_threshold(model, method = "kde_weighted", 
+                                kde_multiplier = 4)  # More conservative
 ```
-
-**Mode selection:**
-- n < 100: use simple mode
-- n ≥ 100: use complex mode (default)
 
 # MTT Method
 
@@ -506,9 +488,9 @@ result <- set_anomaly_threshold(model, method = "mtt",
 
 ## Feature Comparison
 
-| Feature | Z-score | MAD | Karcher | MTT |
+| Feature | Z-score | MAD | KDE-Weighted | MTT |
 |---------|---------|-----|---------|-----|
-| **Theoretical Basis** | Normal distribution | Median robust statistics | Riemannian geometry | t-distribution test |
+| **Theoretical Basis** | Normal distribution | Median robust statistics | Density-weighted robust | t-distribution test |
 | **Robustness** | Low | Very High | High | Medium |
 | **Speed** | Very Fast | Fast | Medium | Slow |
 | **Small Sample** | Medium | Good | Good | Excellent |
@@ -524,7 +506,7 @@ result <- set_anomaly_threshold(model, method = "mtt",
 ```
 Normal distribution     → Z-score
 Skewed distribution    → MAD
-Heavy-tailed           → Karcher or MAD
+Heavy-tailed           → KDE-Weighted or MAD
 Unknown distribution   → MAD (most robust)
 ```
 
@@ -532,7 +514,7 @@ Unknown distribution   → MAD (most robust)
 
 ```
 n < 100              → MTT or MAD
-100 ≤ n < 1000       → MTT or Karcher
+100 ≤ n < 1000       → MTT or KDE-Weighted
 n ≥ 1000             → Any method applicable
 ```
 
@@ -540,7 +522,7 @@ n ≥ 1000             → Any method applicable
 
 ```
 No/few outliers (< 1%)     → Z-score
-Medium contamination (1-5%) → MAD or Karcher
+Medium contamination (1-5%) → MAD or KDE-Weighted
 Heavy contamination (5-10%) → MAD
 Very heavy (> 10%)         → MAD (only reliable option)
 ```
@@ -551,7 +533,7 @@ Very heavy (> 10%)         → MAD (only reliable option)
 Quick exploration          → Z-score
 Production environment     → MAD (stable and reliable)
 Research papers           → MTT (statistically rigorous)
-Extreme anomaly detection → Karcher or MAD
+Extreme anomaly detection → KDE-Weighted or MAD
 Financial risk control    → MAD or MTT
 ```
 
@@ -570,7 +552,7 @@ all_scores <- c(normal_scores, anomaly_scores)
 methods <- list(
   zscore = set_anomaly_threshold(model, method = "zscore", zscore_threshold = 2),
   mad = set_anomaly_threshold(model, method = "mad", mad_multiplier = 3),
-  karcher = set_anomaly_threshold(model, method = "karcher", karcher_multiplier = 3),
+  kde_weighted = set_anomaly_threshold(model, method = "kde_weighted", kde_multiplier = 3),
   mtt = set_anomaly_threshold(model, method = "mtt", mtt_alpha = 0.05)
 )
 
@@ -579,7 +561,7 @@ methods <- list(
 # ---------|-----------|----------|----------|-----------|----------
 # Z-score  | 0.590     | 5        | 5        | 0         | 100%
 # MAD      | 0.610     | 5        | 5        | 0         | 100%
-# Karcher  | 0.595     | 5        | 5        | 0         | 100%
+# KDE-Weighted | 0.595  | 5        | 5        | 0         | 100%
 # MTT      | 0.605     | 5        | 5        | 0         | 100%
 ```
 
@@ -594,7 +576,7 @@ contaminated_scores <- c(all_scores, 2.0, 3.5)
 # ---------|-----------|----------|-------------------------
 # Z-score  | 0.720     | 5        | Threshold inflated, misses moderate anomalies
 # MAD      | 0.610     | 7        | Robust, unaffected by extremes
-# Karcher  | 0.625     | 7        | Fairly robust
+# KDE-Weighted | 0.625  | 7        | Fairly robust
 # MTT      | 0.615     | 7        | Iteratively removes extremes
 ```
 
@@ -623,9 +605,8 @@ result <- set_anomaly_threshold(model, method = "zscore", zscore_threshold = 2)
 result <- set_anomaly_threshold(model, method = "mad", mad_multiplier = 3)
 
 # Distribution features matter
-result <- set_anomaly_threshold(model, method = "karcher", 
-                                karcher_multiplier = 3,
-                                karcher_method = "complex")
+result <- set_anomaly_threshold(model, method = "kde_weighted", 
+                                kde_multiplier = 3)
 
 # Statistical rigor (research, audit)
 result <- set_anomaly_threshold(model, method = "mtt", 
@@ -662,8 +643,8 @@ confirmed_anomalies <- screen1$predictions$is_anomaly &
    - Rousseeuw, P. J., & Croux, C. (1993). "Alternatives to the median absolute deviation." *Journal of the American Statistical Association*.
    - Leys, C., et al. (2013). "Detecting outliers: Do not use standard deviation around the mean, use absolute deviation around the median." *Journal of Experimental Social Psychology*.
 
-3. **Karcher Mean**:
-   - Afsari, B. (2011). "Riemannian Lp center of mass: existence, uniqueness, and convexity." *Proceedings of the AMS*.
+3. **KDE-Weighted Method**:
+   - Silverman, B. W. (1986). "Density Estimation for Statistics and Data Analysis." *Chapman and Hall*.
    - Zhao, Y., et al. (2021). "SUOD: Accelerating Large-Scale Unsupervised Heterogeneous Outlier Detection." *PyOD Library*.
 
 4. **Thompson Tau Test**:
@@ -676,33 +657,26 @@ confirmed_anomalies <- screen1$predictions$is_anomaly &
 
 **A**: MAD's scale differs from standard deviation. To make it comparable to SD under normal distribution, multiply by 1.4826. In anomaly detection, we typically use multipliers like 3 directly as the threshold.
 
-## Q2: How to choose between simple and complex modes for Karcher?
-
-**A**: 
-- Simple mode: Small samples (n < 100), direct weighted average
-- Complex mode: Large samples (n ≥ 100), uses KDE for distribution density
-
-## Q3: How to set MTT significance level?
+## Q2: How to set MTT significance level?
 
 **A**:
 - α = 0.01: Very conservative, for scenarios requiring strict false positive control (medical diagnosis)
 - α = 0.05: Standard setting, balances false positives and negatives (recommended)
 - α = 0.10: More lenient, for preliminary screening
 
-## Q4: Why is Z-score unsuitable for data with outliers?
+## Q3: Why is Z-score unsuitable for data with outliers?
 
 **A**: Z-score uses mean and SD, both have ~0% breakdown point. Even one extreme outlier significantly affects them, inflating the threshold and causing moderate anomalies to be missed.
 
-## Q5: Which method is fastest?
+## Q4: Which method is fastest?
 
 **A**: Speed ranking (fastest to slowest):
 1. Z-score: Only mean and SD, O(n)
 2. MAD: Requires sorting, O(n log n)
-3. Karcher (simple): Weighted average, O(n)
-4. Karcher (complex): Requires KDE, O(n²) or higher
-5. MTT: Iterative, O(n × k) where k is iteration count
+3. KDE-Weighted: Requires KDE, O(n²) or higher
+4. MTT: Iterative, O(n × k) where k is iteration count
 
-## Q6: How to validate method effectiveness?
+## Q5: How to validate method effectiveness?
 
 **A**: Use these strategies:
 
@@ -719,7 +693,7 @@ anomalies <- data[result$predictions$is_anomaly, ]
 print(summary(anomalies))
 
 # 4. Compare multiple methods
-methods <- c("zscore", "mad", "karcher", "mtt")
+methods <- c("zscore", "mad", "kde_weighted", "mtt")
 compare <- sapply(methods, function(m) {
   r <- set_anomaly_threshold(model, method = m)
   sum(r$predictions$is_anomaly)

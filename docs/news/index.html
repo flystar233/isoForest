@@ -41,13 +41,13 @@
 <h2 class="pkg-version" data-toc-text="1.1.0" id="isoforest-110">isoForest 1.1.0<a class="anchor" aria-label="anchor" href="#isoforest-110"></a></h2>
 <div class="section level3">
 <h3 id="new-features-1-1-0">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-1-0"></a></h3>
-<ul><li>Added <strong>Karcher Mean (Riemannian Center of Mass)</strong> threshold method to <code><a href="../reference/set_anomaly_threshold.html">set_anomaly_threshold()</a></code>
-<ul><li>Highly robust geometric method for anomaly detection thresholding</li>
-<li>Based on Riemannian geometry principles</li>
+<ul><li>Added <strong>KDE-Weighted Mean</strong> threshold method to <code><a href="../reference/set_anomaly_threshold.html">set_anomaly_threshold()</a></code>
+<ul><li>Density-weighted robust mean using kernel density estimation</li>
+<li>Automatically weights points by local density for better outlier resistance</li>
 <li>Particularly effective for heavy-tailed distributions and extreme outliers</li>
-<li>Added parameters: <code>karcher_multiplier</code>, <code>karcher_max_iter</code>, <code>karcher_tol</code>
+<li>Added parameter: <code>kde_multiplier</code>
 </li>
-<li>New internal function: <code><a href="../reference/karcher_threshold.html">compute_karcher_mean()</a></code> for iterative optimization</li>
+<li>Uses KDE to compute density-weighted center of anomaly score distribution</li>
 </ul></li>
 <li>Added <strong>MTT (Modified Thompson Tau Test)</strong> threshold method to <code><a href="../reference/set_anomaly_threshold.html">set_anomaly_threshold()</a></code>
 <ul><li>Statistical test based on t-distribution for outlier detection</li>

@@ -186,8 +186,8 @@
 <td>Robust, symmetric distributions</td>
 </tr>
 <tr class="even">
-<td><strong>karcher</strong></td>
-<td>Karcher mean (Riemannian center)</td>
+<td><strong>kde_weighted</strong></td>
+<td>KDE-weighted mean (density-weighted robust mean)</td>
 <td>Heavy tails, extreme outliers</td>
 </tr>
 <tr class="odd">
@@ -224,14 +224,14 @@
 </h3>
 <p>For data with extreme outliers or heavy-tailed distributions:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Karcher mean method (highly robust)</span></span>
-<span><span class="va">result_karcher</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/set_anomaly_threshold.html">set_anomaly_threshold</a></span><span class="op">(</span><span class="va">model</span>, method <span class="op">=</span> <span class="st">"karcher"</span>, karcher_multiplier <span class="op">=</span> <span class="fl">2.5</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="co"># KDE-weighted method (density-aware, highly robust)</span></span>
+<span><span class="va">result_kde</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/set_anomaly_threshold.html">set_anomaly_threshold</a></span><span class="op">(</span><span class="va">model</span>, method <span class="op">=</span> <span class="st">"kde_weighted"</span>, kde_multiplier <span class="op">=</span> <span class="fl">3</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># MAD method (robust and fast)</span></span>
 <span><span class="va">result_mad</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/set_anomaly_threshold.html">set_anomaly_threshold</a></span><span class="op">(</span><span class="va">model</span>, method <span class="op">=</span> <span class="st">"mad"</span>, mad_multiplier <span class="op">=</span> <span class="fl">3</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Compare results</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Karcher detected:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">result_karcher</span><span class="op">$</span><span class="va">predictions</span><span class="op">$</span><span class="va">is_anomaly</span><span class="op">)</span>, <span class="st">"anomalies\n"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"KDE-weighted detected:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">result_kde</span><span class="op">$</span><span class="va">predictions</span><span class="op">$</span><span class="va">is_anomaly</span><span class="op">)</span>, <span class="st">"anomalies\n"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"MAD detected:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">result_mad</span><span class="op">$</span><span class="va">predictions</span><span class="op">$</span><span class="va">is_anomaly</span><span class="op">)</span>, <span class="st">"anomalies\n"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">

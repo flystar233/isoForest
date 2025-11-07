@@ -12,10 +12,7 @@ set_anomaly_threshold(
   iqr_multiplier = 1.5,
   zscore_threshold = 2,
   mad_multiplier = 3,
-  karcher_multiplier = 3,
-  karcher_method = "complex",
-  karcher_max_iter = 100,
-  karcher_tol = 1e-06,
+  kde_multiplier = 3,
   mtt_alpha = 0.05,
   mtt_max_iter = 30,
   manual_threshold = NULL
@@ -25,7 +22,7 @@ set_anomaly_threshold(
 \item{object}{An isoForest model object}
 
 \item{method}{The method to use for threshold setting. Options include:
-"contamination" (default), "quantile", "iqr", "zscore", "mad", "karcher", "mtt", "manual"}
+"contamination" (default), "quantile", "iqr", "zscore", "mad", "kde_weighted", "mtt", "manual"}
 
 \item{contamination}{The expected proportion of outliers (for contamination method). Default is 0.05}
 
@@ -37,13 +34,7 @@ set_anomaly_threshold(
 
 \item{mad_multiplier}{The MAD multiplier (for mad method). Default is 3}
 
-\item{karcher_multiplier}{The multiplier for standard deviation (for karcher method). Default is 1}
-
-\item{karcher_method}{Method for Karcher mean computation: "simple" or "complex". Default is "complex"}
-
-\item{karcher_max_iter}{Maximum iterations for Karcher mean computation. Default is 100}
-
-\item{karcher_tol}{Convergence tolerance for Karcher mean. Default is 1e-6}
+\item{kde_multiplier}{The multiplier for standard deviation (for kde_weighted method). Default is 3}
 
 \item{mtt_alpha}{Significance level for MTT (Modified Thompson Tau) test. Default is 0.05}
 
@@ -84,8 +75,8 @@ result4 <- set_anomaly_threshold(model, method = "zscore", zscore_threshold = 2)
 # Method 5: MAD-based (robust)
 result5 <- set_anomaly_threshold(model, method = "mad", mad_multiplier = 3)
 
-# Method 6: Karcher mean-based (Riemannian center of mass)
-result6 <- set_anomaly_threshold(model, method = "karcher", karcher_multiplier = 3)
+# Method 6: KDE-weighted (density-weighted robust mean)
+result6 <- set_anomaly_threshold(model, method = "kde_weighted", kde_multiplier = 3)
 
 # Method 7: MTT-based (Modified Thompson Tau test, good for small samples)
 result7 <- set_anomaly_threshold(model, method = "mtt", mtt_alpha = 0.05)

@@ -210,19 +210,9 @@ in Machine Learning. <em>Journal of Machine Learning Research</em>, <strong>21</
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">iris</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="isoForest.html">isoForest</a></span><span class="op">(</span><span class="va">iris</span><span class="op">[</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="set_anomaly_threshold.html">set_anomaly_threshold</a></span><span class="op">(</span><span class="va">model</span>, method <span class="op">=</span> <span class="st">"karcher"</span><span class="op">)</span></span></span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in match.arg(method, c("contamination", "quantile", "iqr", "zscore",     "mad", "kde_weighted", "mtt", "manual")):</span> 'arg' should be one of "contamination", "quantile", "iqr", "zscore", "mad", "kde_weighted", "mtt", "manual"</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">result</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Anomaly Detection Threshold Results</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> ===================================</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Method: karcher </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Threshold: 0.6244 </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Total samples: 150 </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Detected anomalies: 6 </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Contamination rate: 4 %</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Score range: [0.5468, 0.6843]</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Score statistics:</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   Mean: 0.5663 </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   Median: 0.5575 </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   SD: 0.0245 </span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error:</span> object 'result' not found</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Tune multiplier for different sensitivity</span></span></span>
 <span class="r-in"><span><span class="va">result_sensitive</span> <span class="op">&lt;-</span> <span class="fu"><a href="set_anomaly_threshold.html">set_anomaly_threshold</a></span><span class="op">(</span></span></span>
@@ -230,12 +220,14 @@ in Machine Learning. <em>Journal of Machine Learning Research</em>, <strong>21</
 <span class="r-in"><span>  method <span class="op">=</span> <span class="st">"karcher"</span>,</span></span>
 <span class="r-in"><span>  karcher_multiplier <span class="op">=</span> <span class="fl">2.0</span>  <span class="co"># More sensitive</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in set_anomaly_threshold(model, method = "karcher", karcher_multiplier = 2):</span> unused argument (karcher_multiplier = 2)</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="va">result_conservative</span> <span class="op">&lt;-</span> <span class="fu"><a href="set_anomaly_threshold.html">set_anomaly_threshold</a></span><span class="op">(</span></span></span>
 <span class="r-in"><span>  <span class="va">model</span>, </span></span>
 <span class="r-in"><span>  method <span class="op">=</span> <span class="st">"karcher"</span>,</span></span>
 <span class="r-in"><span>  karcher_multiplier <span class="op">=</span> <span class="fl">4.0</span>  <span class="co"># More conservative</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in set_anomaly_threshold(model, method = "karcher", karcher_multiplier = 4):</span> unused argument (karcher_multiplier = 4)</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Compare simple vs complex method</span></span></span>
 <span class="r-in"><span><span class="va">result_simple</span> <span class="op">&lt;-</span> <span class="fu"><a href="set_anomaly_threshold.html">set_anomaly_threshold</a></span><span class="op">(</span></span></span>
@@ -243,20 +235,22 @@ in Machine Learning. <em>Journal of Machine Learning Research</em>, <strong>21</
 <span class="r-in"><span>  method <span class="op">=</span> <span class="st">"karcher"</span>,</span></span>
 <span class="r-in"><span>  karcher_method <span class="op">=</span> <span class="st">"simple"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in set_anomaly_threshold(model, method = "karcher", karcher_method = "simple"):</span> unused argument (karcher_method = "simple")</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="va">result_complex</span> <span class="op">&lt;-</span> <span class="fu"><a href="set_anomaly_threshold.html">set_anomaly_threshold</a></span><span class="op">(</span></span></span>
 <span class="r-in"><span>  <span class="va">model</span>,</span></span>
 <span class="r-in"><span>  method <span class="op">=</span> <span class="st">"karcher"</span>,</span></span>
 <span class="r-in"><span>  karcher_method <span class="op">=</span> <span class="st">"complex"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in set_anomaly_threshold(model, method = "karcher", karcher_method = "complex"):</span> unused argument (karcher_method = "complex")</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Compare anomaly counts</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Sensitive:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">result_sensitive</span><span class="op">$</span><span class="va">predictions</span><span class="op">$</span><span class="va">is_anomaly</span><span class="op">)</span>, <span class="st">"anomalies\n"</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Sensitive: 11 anomalies</span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error:</span> object 'result_sensitive' not found</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Default:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">predictions</span><span class="op">$</span><span class="va">is_anomaly</span><span class="op">)</span>, <span class="st">"anomalies\n"</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Default: 6 anomalies</span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error:</span> object 'result' not found</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Conservative:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">result_conservative</span><span class="op">$</span><span class="va">predictions</span><span class="op">$</span><span class="va">is_anomaly</span><span class="op">)</span>, <span class="st">"anomalies\n"</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Conservative: 4 anomalies</span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error:</span> object 'result_conservative' not found</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Compare with other robust methods</span></span></span>
 <span class="r-in"><span><span class="va">result_mad</span> <span class="op">&lt;-</span> <span class="fu"><a href="set_anomaly_threshold.html">set_anomaly_threshold</a></span><span class="op">(</span><span class="va">model</span>, method <span class="op">=</span> <span class="st">"mad"</span><span class="op">)</span></span></span>
@@ -271,11 +265,9 @@ in Machine Learning. <em>Journal of Machine Learning Research</em>, <strong>21</
 <span class="r-in"><span>    <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">result_iqr</span><span class="op">$</span><span class="va">predictions</span><span class="op">$</span><span class="va">is_anomaly</span><span class="op">)</span></span></span>
 <span class="r-in"><span>  <span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error:</span> object 'result' not found</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">comparison</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    Method Threshold Anomalies</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1 Karcher 0.6244168         6</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2     MAD 0.5856542        19</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3     IQR 0.6015751        10</span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error:</span> object 'comparison' not found</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

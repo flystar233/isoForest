@@ -55,10 +55,7 @@ based on anomaly scores from isoForest.</p>
 <span>  iqr_multiplier <span class="op">=</span> <span class="fl">1.5</span>,</span>
 <span>  zscore_threshold <span class="op">=</span> <span class="fl">2</span>,</span>
 <span>  mad_multiplier <span class="op">=</span> <span class="fl">3</span>,</span>
-<span>  karcher_multiplier <span class="op">=</span> <span class="fl">3</span>,</span>
-<span>  karcher_method <span class="op">=</span> <span class="st">"complex"</span>,</span>
-<span>  karcher_max_iter <span class="op">=</span> <span class="fl">100</span>,</span>
-<span>  karcher_tol <span class="op">=</span> <span class="fl">1e-06</span>,</span>
+<span>  kde_multiplier <span class="op">=</span> <span class="fl">3</span>,</span>
 <span>  mtt_alpha <span class="op">=</span> <span class="fl">0.05</span>,</span>
 <span>  mtt_max_iter <span class="op">=</span> <span class="fl">30</span>,</span>
 <span>  manual_threshold <span class="op">=</span> <span class="cn">NULL</span></span>
@@ -75,7 +72,7 @@ based on anomaly scores from isoForest.</p>
 
 <dt id="arg-method">method<a class="anchor" aria-label="anchor" href="#arg-method"></a></dt>
 <dd><p>The method to use for threshold setting. Options include:
-"contamination" (default), "quantile", "iqr", "zscore", "mad", "karcher", "mtt", "manual"</p></dd>
+"contamination" (default), "quantile", "iqr", "zscore", "mad", "kde_weighted", "mtt", "manual"</p></dd>
 
 
 <dt id="arg-contamination">contamination<a class="anchor" aria-label="anchor" href="#arg-contamination"></a></dt>
@@ -98,20 +95,8 @@ based on anomaly scores from isoForest.</p>
 <dd><p>The MAD multiplier (for mad method). Default is 3</p></dd>
 
 
-<dt id="arg-karcher-multiplier">karcher_multiplier<a class="anchor" aria-label="anchor" href="#arg-karcher-multiplier"></a></dt>
-<dd><p>The multiplier for standard deviation (for karcher method). Default is 1</p></dd>
-
-
-<dt id="arg-karcher-method">karcher_method<a class="anchor" aria-label="anchor" href="#arg-karcher-method"></a></dt>
-<dd><p>Method for Karcher mean computation: "simple" or "complex". Default is "complex"</p></dd>
-
-
-<dt id="arg-karcher-max-iter">karcher_max_iter<a class="anchor" aria-label="anchor" href="#arg-karcher-max-iter"></a></dt>
-<dd><p>Maximum iterations for Karcher mean computation. Default is 100</p></dd>
-
-
-<dt id="arg-karcher-tol">karcher_tol<a class="anchor" aria-label="anchor" href="#arg-karcher-tol"></a></dt>
-<dd><p>Convergence tolerance for Karcher mean. Default is 1e-6</p></dd>
+<dt id="arg-kde-multiplier">kde_multiplier<a class="anchor" aria-label="anchor" href="#arg-kde-multiplier"></a></dt>
+<dd><p>The multiplier for standard deviation (for kde_weighted method). Default is 3</p></dd>
 
 
 <dt id="arg-mtt-alpha">mtt_alpha<a class="anchor" aria-label="anchor" href="#arg-mtt-alpha"></a></dt>
@@ -155,8 +140,8 @@ based on anomaly scores from isoForest.</p>
 <span class="r-in"><span><span class="co"># Method 5: MAD-based (robust)</span></span></span>
 <span class="r-in"><span><span class="va">result5</span> <span class="op">&lt;-</span> <span class="fu">set_anomaly_threshold</span><span class="op">(</span><span class="va">model</span>, method <span class="op">=</span> <span class="st">"mad"</span>, mad_multiplier <span class="op">=</span> <span class="fl">3</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Method 6: Karcher mean-based (Riemannian center of mass)</span></span></span>
-<span class="r-in"><span><span class="va">result6</span> <span class="op">&lt;-</span> <span class="fu">set_anomaly_threshold</span><span class="op">(</span><span class="va">model</span>, method <span class="op">=</span> <span class="st">"karcher"</span>, karcher_multiplier <span class="op">=</span> <span class="fl">3</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># Method 6: KDE-weighted (density-weighted robust mean)</span></span></span>
+<span class="r-in"><span><span class="va">result6</span> <span class="op">&lt;-</span> <span class="fu">set_anomaly_threshold</span><span class="op">(</span><span class="va">model</span>, method <span class="op">=</span> <span class="st">"kde_weighted"</span>, kde_multiplier <span class="op">=</span> <span class="fl">3</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Method 7: MTT-based (Modified Thompson Tau test, good for small samples)</span></span></span>
 <span class="r-in"><span><span class="va">result7</span> <span class="op">&lt;-</span> <span class="fu">set_anomaly_threshold</span><span class="op">(</span><span class="va">model</span>, method <span class="op">=</span> <span class="st">"mtt"</span>, mtt_alpha <span class="op">=</span> <span class="fl">0.05</span><span class="op">)</span></span></span>
@@ -171,7 +156,7 @@ based on anomaly scores from isoForest.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $threshold</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       95% </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 0.6191391 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 0.6139686 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $total_samples</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 150</span>
@@ -183,25 +168,25 @@ based on anomaly scores from isoForest.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.05333333</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $score_range</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.5471808 0.6653292</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.5467676 0.6592256</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $score_mean</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.5667535</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.5667653</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $score_median</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.5586247</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.5595962</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $score_sd</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.02190458</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.02105039</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">result1</span><span class="op">$</span><span class="va">predictions</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   id average_depth anomaly_score is_anomaly</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1  1         7.982     0.5471808      FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2  2         7.948     0.5485880      FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3  3         7.848     0.5527479      FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4  4         7.780     0.5555945      FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5  5         7.930     0.5493345      FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6  6         7.468     0.5688449      FALSE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1  1         7.992     0.5467676      FALSE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2  2         7.928     0.5494175      FALSE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3  3         7.900     0.5505808      FALSE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4  4         7.844     0.5529149      FALSE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5  5         7.968     0.5477598      FALSE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6  6         7.552     0.5652467      FALSE</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

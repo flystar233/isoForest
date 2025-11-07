@@ -2,12 +2,12 @@
 
 ## New Features
 
-* Added **Karcher Mean (Riemannian Center of Mass)** threshold method to `set_anomaly_threshold()`
-  - Highly robust geometric method for anomaly detection thresholding
-  - Based on Riemannian geometry principles
+* Added **KDE-Weighted Mean** threshold method to `set_anomaly_threshold()`
+  - Density-weighted robust mean using kernel density estimation
+  - Automatically weights points by local density for better outlier resistance
   - Particularly effective for heavy-tailed distributions and extreme outliers
-  - Added parameters: `karcher_multiplier`, `karcher_max_iter`, `karcher_tol`
-  - New internal function: `compute_karcher_mean()` for iterative optimization
+  - Added parameter: `kde_multiplier`
+  - Uses KDE to compute density-weighted center of anomaly score distribution
 
 * Added **MTT (Modified Thompson Tau Test)** threshold method to `set_anomaly_threshold()`
   - Statistical test based on t-distribution for outlier detection

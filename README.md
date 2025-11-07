@@ -91,7 +91,7 @@ The package provides multiple methods for setting anomaly detection thresholds. 
 | **iqr** | Interquartile range (Q3 + 1.5×IQR) | Box-plot style analysis |
 | **zscore** | Z-score based (mean + 2×sd) | Normal distributions |
 | **mad** | Median Absolute Deviation | Robust, symmetric distributions |
-| **karcher** | Karcher mean (Riemannian center) | Heavy tails, extreme outliers |
+| **kde_weighted** | KDE-weighted mean (density-weighted robust mean) | Heavy tails, extreme outliers |
 | **mtt** | Modified Thompson Tau test | Small to medium samples |
 | **manual** | User-specified threshold | Custom requirements |
 
@@ -116,14 +116,14 @@ head(anomalies)
 For data with extreme outliers or heavy-tailed distributions:
 
 ```r
-# Karcher mean method (highly robust)
-result_karcher <- set_anomaly_threshold(model, method = "karcher", karcher_multiplier = 2.5)
+# KDE-weighted method (density-aware, highly robust)
+result_kde <- set_anomaly_threshold(model, method = "kde_weighted", kde_multiplier = 3)
 
 # MAD method (robust and fast)
 result_mad <- set_anomaly_threshold(model, method = "mad", mad_multiplier = 3)
 
 # Compare results
-cat("Karcher detected:", sum(result_karcher$predictions$is_anomaly), "anomalies\n")
+cat("KDE-weighted detected:", sum(result_kde$predictions$is_anomaly), "anomalies\n")
 cat("MAD detected:", sum(result_mad$predictions$is_anomaly), "anomalies\n")
 ```
 
