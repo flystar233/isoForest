@@ -208,6 +208,8 @@ plot_anomaly_projection(model, data, dim_reduction = "umap")
 # Compare both methods side-by-side (requires 'umap' and 'gridExtra' packages)
 plot_anomaly_projection_all(model, data)
 ```
+<img width="634" height="317" alt="Rplot" src="https://github.com/user-attachments/assets/df81d45d-5bac-4cdf-8d6e-3413de2d80e2" />
+
 
 **Features:**
 - Anomalies highlighted in red, normal points in blue
