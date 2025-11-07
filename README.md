@@ -191,6 +191,8 @@ plot_feature_boxplot_faceted(
   top_n = NULL  # Show all features
 )
 ```
+<img width="568" height="375" alt="2025-11-07_11-16" src="https://github.com/user-attachments/assets/90881255-36ef-4e62-9f89-578b8b911af2" />
+
 
 ## High-Dimensional Data Visualization
 
