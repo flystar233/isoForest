@@ -159,10 +159,10 @@ model <- isoForest(iris[1:4])
 contributions <- feature_contribution(model, sample_ids = 42, data = iris[1:4])
 
 # Single boxplot view (shows top contributing features)
-plot_feature_boxplot(contributions, iris[1:4], sample_id = 42, top_n = 5)
+plot_anomaly_boxplot(contributions, iris[1:4], sample_id = 42, top_n = 5)
 
 # Faceted view (better for many features)
-plot_feature_boxplot_faceted(contributions, iris[1:4], sample_id = 42, top_n = 8)
+plot_anomaly_boxplot_faceted(contributions, iris[1:4], sample_id = 42, top_n = 8)
 ```
 
 ### Visualizing Multiple Anomalies (Without Contribution Analysis)
@@ -177,14 +177,14 @@ result <- set_anomaly_threshold(model2, method = "mtt", mtt_alpha = 0.05)
 anomaly_ids <- which(result$predictions$is_anomaly)
 
 # Visualize all anomalies at once
-plot_feature_boxplot(
+plot_anomaly_boxplot(
   contribution_obj = NULL,  # No contribution object needed
   data = data,
   sample_id = anomaly_ids   # Can be a vector of IDs
 )
 
 # Faceted view (recommended for multiple features)
-plot_feature_boxplot_faceted(
+plot_anomaly_boxplot_faceted(
   contribution_obj = NULL,
   data = data,
   sample_id = anomaly_ids,
@@ -200,13 +200,13 @@ For high-dimensional data (>4 features), visualize anomalies in 2D using dimensi
 
 ```r
 # PCA projection (fast, interpretable)
-plot_anomalies_2d(model, data, dim_reduction = "pca")
+plot_anomaly_projection(model, data, dim_reduction = "pca")
 
 # UMAP projection (better for non-linear patterns, requires 'umap' package)
-plot_anomalies_2d(model, data, dim_reduction = "umap")
+plot_anomaly_projection(model, data, dim_reduction = "umap")
 
 # Compare both methods side-by-side (requires 'umap' and 'gridExtra' packages)
-compare_dim_reduction(model, data)
+plot_anomaly_projection_all(model, data)
 ```
 
 **Features:**
@@ -214,12 +214,12 @@ compare_dim_reduction(model, data)
 - Smart sampling for large datasets (preserves all anomalies)
 - Adjust sampling: `sample_rate = 0.05` (default, anomalies = 5% of display)
 
-See `?plot_anomalies_2d` for more details.
+See `?plot_anomaly_projection` for more details.
 
 ## Basic Visualization
 
 ```r
 result <- isoForest(iris[1:2])
-anomaly_plot(result, iris[1:2], plot_type="heatmap")
+plot_anomaly_basic(result, iris[1:2], plot_type="heatmap")
 ```
 ![](https://github.com/user-attachments/assets/8518b445-1631-4e7b-be30-ddcc3dac10ac)

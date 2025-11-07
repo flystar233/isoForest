@@ -24,6 +24,11 @@
 <url><loc>/reference/is_anomaly.html</loc></url>
 <url><loc>/reference/karcher_threshold.html</loc></url>
 <url><loc>/reference/pathLengthNormalizer.html</loc></url>
+<url><loc>/reference/plot_anomaly_basic.html</loc></url>
+<url><loc>/reference/plot_anomaly_boxplot.html</loc></url>
+<url><loc>/reference/plot_anomaly_boxplot_faceted.html</loc></url>
+<url><loc>/reference/plot_anomaly_projection.html</loc></url>
+<url><loc>/reference/plot_anomaly_projection_all.html</loc></url>
 <url><loc>/reference/plot_feature_boxplot.html</loc></url>
 <url><loc>/reference/plot_feature_boxplot_faceted.html</loc></url>
 <url><loc>/reference/predict.isoForest.html</loc></url>

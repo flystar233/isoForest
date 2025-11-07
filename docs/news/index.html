@@ -58,17 +58,58 @@
 <li>New internal functions: <code><a href="../reference/compute_mtt_threshold.html">compute_mtt_threshold()</a></code>, <code><a href="../reference/thompson_tau_critical.html">thompson_tau_critical()</a></code>
 </li>
 </ul></li>
-<li>Enhanced <strong><code><a href="../reference/plot_feature_boxplot.html">plot_feature_boxplot()</a></code></strong> and <strong><code><a href="../reference/plot_feature_boxplot_faceted.html">plot_feature_boxplot_faceted()</a></code></strong> visualization functions
+<li>Enhanced <strong><code><a href="../reference/plot_anomaly_boxplot.html">plot_anomaly_boxplot()</a></code></strong> and <strong><code><a href="../reference/plot_anomaly_boxplot_faceted.html">plot_anomaly_boxplot_faceted()</a></code></strong> visualization functions
 <ul><li>
 <code>contribution_obj</code> parameter is now optional (defaults to NULL)</li>
 <li>
 <code>sample_id</code> can now be a vector to highlight multiple anomalies at once</li>
 <li>Auto-optimization: point size adjusts to 1 when &gt;5 anomalies are marked</li>
 <li>Smart subtitle: shows sample IDs for ≤5 anomalies, simplified text for &gt;5</li>
-<li>Added <code>highlight_size</code> parameter to <code><a href="../reference/plot_feature_boxplot_faceted.html">plot_feature_boxplot_faceted()</a></code>
+<li>Added <code>highlight_size</code> parameter to <code><a href="../reference/plot_anomaly_boxplot_faceted.html">plot_anomaly_boxplot_faceted()</a></code>
 </li>
 <li>All points (including anomalies) now use jitter effect to avoid overlap</li>
 <li>Better support for visualizing threshold detection results</li>
+</ul></li>
+<li>Added <strong><code><a href="../reference/plot_anomaly_projection.html">plot_anomaly_projection()</a></code></strong> function for high-dimensional data visualization
+<ul><li>Supports both PCA and UMAP dimensionality reduction methods</li>
+<li>Projects high-dimensional data to 2D for intuitive anomaly visualization</li>
+<li>Anomalies are highlighted in red, normal points in blue</li>
+<li>Automatic anomaly rate calculation and display</li>
+<li>PCA: Shows variance explained by principal components</li>
+<li>UMAP: Configurable parameters (n_neighbors, min_dist)</li>
+<li>Ideal for exploring anomalies in datasets with &gt;4 features</li>
+<li>Simple and clean visualization without sample labels</li>
+<li>
+<strong>Smart sampling based on anomaly rate</strong> (default: <code>sample_rate = 0.05</code>)
+<ul><li>All anomalies are always displayed</li>
+<li>Normal points are sampled to achieve target anomaly proportion</li>
+<li>Example: 50 anomalies with 5% rate → ~1000 total points shown</li>
+<li>Significantly improves speed for large datasets</li>
+<li>Customizable via <code>sample_rate</code> parameter (set to NULL to disable)</li>
+</ul></li>
+</ul></li>
+<li>Added <strong><code><a href="../reference/plot_anomaly_projection_all.html">plot_anomaly_projection_all()</a></code></strong> function for method comparison
+<ul><li>Side-by-side comparison of PCA and UMAP projections</li>
+<li>Helps choose the best visualization method for your data</li>
+<li>Displays both methods with consistent styling</li>
+<li>Requires <code>gridExtra</code> package for layout</li>
+</ul></li>
+</ul></div>
+<div class="section level3">
+<h3 id="breaking-changes-1-1-0">Breaking Changes<a class="anchor" aria-label="anchor" href="#breaking-changes-1-1-0"></a></h3>
+<ul><li>
+<strong>Renamed all plotting functions</strong> for better consistency and clarity:
+<ul><li>
+<code>anomaly_plot()</code> → <code><a href="../reference/plot_anomaly_basic.html">plot_anomaly_basic()</a></code> - Basic 2D anomaly score visualization</li>
+<li>
+<code>plot_feature_boxplot()</code> → <code><a href="../reference/plot_anomaly_boxplot.html">plot_anomaly_boxplot()</a></code> - Anomaly boxplot with features</li>
+<li>
+<code>plot_feature_boxplot_faceted()</code> → <code><a href="../reference/plot_anomaly_boxplot_faceted.html">plot_anomaly_boxplot_faceted()</a></code> - Faceted version</li>
+<li>
+<code>plot_anomalies_2d()</code> → <code><a href="../reference/plot_anomaly_projection.html">plot_anomaly_projection()</a></code> - Dimensionality reduction projection</li>
+<li>
+<code>compare_dim_reduction()</code> → <code><a href="../reference/plot_anomaly_projection_all.html">plot_anomaly_projection_all()</a></code> - Compare PCA vs UMAP</li>
+<li>All functions now share the unified <code>plot_anomaly_*</code> prefix for easy discovery</li>
 </ul></li>
 </ul></div>
 <div class="section level3">
@@ -77,6 +118,12 @@
 <li>Enhanced documentation with comprehensive method comparison and selection guide</li>
 <li>Added detailed threshold setting section to README.md</li>
 <li>Added “Feature Distribution Visualization” section to README.md with usage examples</li>
+<li>Added “High-Dimensional Data Visualization with Dimensionality Reduction” section to README.md
+<ul><li>Complete guide for using PCA and UMAP</li>
+<li>Comparison table and workflow recommendations</li>
+<li>Advanced usage examples</li>
+</ul></li>
+<li>Updated vignette with high-dimensional data visualization examples</li>
 <li>Improved plot clarity when displaying many anomaly points simultaneously</li>
 <li>Visualization functions now more flexible for exploring multiple anomalies</li>
 </ul></div>

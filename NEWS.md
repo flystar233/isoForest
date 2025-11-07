@@ -16,16 +16,16 @@
   - Added parameters: `mtt_alpha`, `mtt_max_iter`
   - New internal functions: `compute_mtt_threshold()`, `thompson_tau_critical()`
 
-* Enhanced **`plot_feature_boxplot()`** and **`plot_feature_boxplot_faceted()`** visualization functions
+* Enhanced **`plot_anomaly_boxplot()`** and **`plot_anomaly_boxplot_faceted()`** visualization functions
   - `contribution_obj` parameter is now optional (defaults to NULL)
   - `sample_id` can now be a vector to highlight multiple anomalies at once
   - Auto-optimization: point size adjusts to 1 when >5 anomalies are marked
   - Smart subtitle: shows sample IDs for ≤5 anomalies, simplified text for >5
-  - Added `highlight_size` parameter to `plot_feature_boxplot_faceted()`
+  - Added `highlight_size` parameter to `plot_anomaly_boxplot_faceted()`
   - All points (including anomalies) now use jitter effect to avoid overlap
   - Better support for visualizing threshold detection results
 
-* Added **`plot_anomalies_2d()`** function for high-dimensional data visualization
+* Added **`plot_anomaly_projection()`** function for high-dimensional data visualization
   - Supports both PCA and UMAP dimensionality reduction methods
   - Projects high-dimensional data to 2D for intuitive anomaly visualization
   - Anomalies are highlighted in red, normal points in blue
@@ -41,11 +41,21 @@
     - Significantly improves speed for large datasets
     - Customizable via `sample_rate` parameter (set to NULL to disable)
 
-* Added **`compare_dim_reduction()`** function for method comparison
+* Added **`plot_anomaly_projection_all()`** function for method comparison
   - Side-by-side comparison of PCA and UMAP projections
   - Helps choose the best visualization method for your data
   - Displays both methods with consistent styling
   - Requires `gridExtra` package for layout
+
+## Breaking Changes
+
+* **Renamed all plotting functions** for better consistency and clarity:
+  - `anomaly_plot()` → `plot_anomaly_basic()` - Basic 2D anomaly score visualization
+  - `plot_feature_boxplot()` → `plot_anomaly_boxplot()` - Anomaly boxplot with features
+  - `plot_feature_boxplot_faceted()` → `plot_anomaly_boxplot_faceted()` - Faceted version
+  - `plot_anomalies_2d()` → `plot_anomaly_projection()` - Dimensionality reduction projection
+  - `compare_dim_reduction()` → `plot_anomaly_projection_all()` - Compare PCA vs UMAP
+  - All functions now share the unified `plot_anomaly_*` prefix for easy discovery
 
 ## Improvements
 

@@ -149,7 +149,7 @@ When you want to understand why a specific sample is anomalous:
 contributions <- feature_contribution(model, sample_ids = 42, data = iris[1:4])
 
 # Plot boxplots showing where the anomaly falls
-plot_feature_boxplot(contributions, iris[1:4], sample_id = 42, top_n = 4)
+plot_anomaly_boxplot(contributions, iris[1:4], sample_id = 42, top_n = 4)
 ```
 
 ### Visualizing Multiple Anomalies
@@ -162,7 +162,7 @@ result <- set_anomaly_threshold(model, method = "mad", mad_multiplier = 3)
 anomaly_ids <- which(result$predictions$is_anomaly)
 
 # Visualize all anomalies at once (no contribution_obj needed)
-plot_feature_boxplot(
+plot_anomaly_boxplot(
   contribution_obj = NULL,
   data = iris[1:4],
   sample_id = anomaly_ids
@@ -173,7 +173,7 @@ plot_feature_boxplot(
 
 ```{r boxplot_faceted, echo=TRUE, fig.width=8, fig.height=6}
 # Faceted view - better for viewing many features
-plot_feature_boxplot_faceted(
+plot_anomaly_boxplot_faceted(
   contribution_obj = NULL,
   data = iris[1:4],
   sample_id = anomaly_ids,
@@ -196,14 +196,14 @@ plot_feature_boxplot_faceted(
 
 ```{r heatmap, echo=TRUE, fig.width=6, fig.height=4}
 result <- isoForest(iris[1:2])
-anomaly_plot(result, iris[1:2], plot_type = "heatmap")
+plot_anomaly_basic(result, iris[1:2], plot_type = "heatmap")
 ```
 
 ### Scatter Plot
 
 ```{r scatter, echo=TRUE, fig.width=6, fig.height=4}
 result <- isoForest(iris[1:2])
-anomaly_plot(result, iris[1:2], plot_type = "scatter")
+plot_anomaly_basic(result, iris[1:2], plot_type = "scatter")
 ```
 
 ## Complete Workflow Example
@@ -230,7 +230,7 @@ if (length(anomaly_ids) > 0) {
   print(contributions$sample_1$contributions)
   
   # 5. Visualize
-  plot_feature_boxplot_faceted(contributions, iris[1:4], sample_id = top_anomaly)
+  plot_anomaly_boxplot_faceted(contributions, iris[1:4], sample_id = top_anomaly)
 }
 ```
 
@@ -242,7 +242,7 @@ For high-dimensional data (more than 4 features), dimensionality reduction techn
 
 ```{r pca_viz, eval=FALSE}
 # Quick PCA projection
-plot_pca <- plot_anomalies_2d(
+plot_pca <- plot_anomaly_projection(
   model = model,
   data = iris[1:4],
   dim_reduction = "pca",
@@ -263,7 +263,7 @@ print(plot_pca)
 # Requires: install.packages("umap")
 
 # UMAP projection (better for non-linear patterns)
-plot_umap <- plot_anomalies_2d(
+plot_umap <- plot_anomaly_projection(
   model = model,
   data = iris[1:4],
   dim_reduction = "umap",
@@ -285,7 +285,7 @@ print(plot_umap)
 # Requires: install.packages(c("umap", "gridExtra"))
 
 # Compare both methods side-by-side
-comparison <- compare_dim_reduction(
+comparison <- plot_anomaly_projection_all(
   model = model,
   data = iris[1:4],
   method = "mtt"
@@ -299,16 +299,16 @@ For datasets with many points, the visualization functions automatically apply s
 ```{r smart_sampling, eval=FALSE}
 # Default: anomalies represent 5% of displayed points
 # If you have 100 anomalies, ~2000 total points will be shown
-plot_anomalies_2d(model, large_data)
+plot_anomaly_projection(model, large_data)
 
 # Show fewer points (faster, anomalies = 10% of display)
-plot_anomalies_2d(model, large_data, sample_rate = 0.10)
+plot_anomaly_projection(model, large_data, sample_rate = 0.10)
 
 # Show more points (slower, anomalies = 2% of display)
-plot_anomalies_2d(model, large_data, sample_rate = 0.02)
+plot_anomaly_projection(model, large_data, sample_rate = 0.02)
 
 # Disable sampling (show all points)
-plot_anomalies_2d(model, large_data, sample_rate = NULL)
+plot_anomaly_projection(model, large_data, sample_rate = NULL)
 ```
 
 **How it works:**
@@ -337,33 +337,33 @@ Method: mtt | Anomalies: 50/5000 (1.0%) | Threshold: 0.635 | Showing: ~1000/5000
 
 1. **Start with PCA** for fast exploration
    ```r
-   plot_anomalies_2d(model, data, dim_reduction = "pca")
+   plot_anomaly_projection(model, data, dim_reduction = "pca")
    # Default sample_rate = 0.05 (anomalies = 5% of display)
    ```
 
 2. **Try UMAP** if PCA doesn't separate anomalies well
    ```r
-   plot_anomalies_2d(model, data, dim_reduction = "umap")
+   plot_anomaly_projection(model, data, dim_reduction = "umap")
    ```
 
 3. **Compare both** methods to see which works better
    ```r
-   compare_dim_reduction(model, data)
+   plot_anomaly_projection_all(model, data)
    # Shows PCA and UMAP side-by-side with shared title
    ```
 
 4. **Adjust sampling** if needed for speed or detail
    ```r
    # Faster visualization (fewer points)
-   plot_anomalies_2d(model, data, sample_rate = 0.10)
+   plot_anomaly_projection(model, data, sample_rate = 0.10)
    
    # More detail (more points)
-   plot_anomalies_2d(model, data, sample_rate = 0.02)
+   plot_anomaly_projection(model, data, sample_rate = 0.02)
    ```
 
 5. **Validate with feature-level analysis**
    ```r
-   plot_feature_boxplot_faceted(
+   plot_anomaly_boxplot_faceted(
      contribution_obj = NULL,
      data = data,
      sample_id = anomaly_ids
