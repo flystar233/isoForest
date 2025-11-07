@@ -173,7 +173,7 @@ When you want to see where all detected anomalies fall in the feature distributi
 # Detect anomalies using threshold
 data <- read.csv('test.csv')
 model2 <- isoForest(data)
-result <- set_anomaly_threshold(model, method = "mtt", mtt_alpha = 0.05)
+result <- set_anomaly_threshold(model2, method = "mtt", mtt_alpha = 0.05)
 anomaly_ids <- which(result$predictions$is_anomaly)
 
 # Visualize all anomalies at once
@@ -191,6 +191,28 @@ plot_feature_boxplot_faceted(
   top_n = NULL  # Show all features
 )
 ```
+
+## High-Dimensional Data Visualization
+
+For high-dimensional data (>4 features), visualize anomalies in 2D using dimensionality reduction:
+
+```r
+# PCA projection (fast, interpretable)
+plot_anomalies_2d(model, data, dim_reduction = "pca")
+
+# UMAP projection (better for non-linear patterns, requires 'umap' package)
+plot_anomalies_2d(model, data, dim_reduction = "umap")
+
+# Compare both methods side-by-side (requires 'umap' and 'gridExtra' packages)
+compare_dim_reduction(model, data)
+```
+
+**Features:**
+- Anomalies highlighted in red, normal points in blue
+- Smart sampling for large datasets (preserves all anomalies)
+- Adjust sampling: `sample_rate = 0.05` (default, anomalies = 5% of display)
+
+See `?plot_anomalies_2d` for more details.
 
 ## Basic Visualization
 

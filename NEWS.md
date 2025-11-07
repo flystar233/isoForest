@@ -25,12 +25,39 @@
   - All points (including anomalies) now use jitter effect to avoid overlap
   - Better support for visualizing threshold detection results
 
+* Added **`plot_anomalies_2d()`** function for high-dimensional data visualization
+  - Supports both PCA and UMAP dimensionality reduction methods
+  - Projects high-dimensional data to 2D for intuitive anomaly visualization
+  - Anomalies are highlighted in red, normal points in blue
+  - Automatic anomaly rate calculation and display
+  - PCA: Shows variance explained by principal components
+  - UMAP: Configurable parameters (n_neighbors, min_dist)
+  - Ideal for exploring anomalies in datasets with >4 features
+  - Simple and clean visualization without sample labels
+  - **Smart sampling based on anomaly rate** (default: `sample_rate = 0.05`)
+    - All anomalies are always displayed
+    - Normal points are sampled to achieve target anomaly proportion
+    - Example: 50 anomalies with 5% rate → ~1000 total points shown
+    - Significantly improves speed for large datasets
+    - Customizable via `sample_rate` parameter (set to NULL to disable)
+
+* Added **`compare_dim_reduction()`** function for method comparison
+  - Side-by-side comparison of PCA and UMAP projections
+  - Helps choose the best visualization method for your data
+  - Displays both methods with consistent styling
+  - Requires `gridExtra` package for layout
+
 ## Improvements
 
 * Updated `mtt_max_iter` default value from 10 to 30 for better detection of multiple outliers
 * Enhanced documentation with comprehensive method comparison and selection guide
 * Added detailed threshold setting section to README.md
 * Added "Feature Distribution Visualization" section to README.md with usage examples
+* Added "High-Dimensional Data Visualization with Dimensionality Reduction" section to README.md
+  - Complete guide for using PCA and UMAP
+  - Comparison table and workflow recommendations
+  - Advanced usage examples
+* Updated vignette with high-dimensional data visualization examples
 * Improved plot clarity when displaying many anomaly points simultaneously
 * Visualization functions now more flexible for exploring multiple anomalies
 

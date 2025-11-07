@@ -233,3 +233,142 @@ if (length(anomaly_ids) > 0) {
   plot_feature_boxplot_faceted(contributions, iris[1:4], sample_id = top_anomaly)
 }
 ```
+
+## High-Dimensional Data Visualization
+
+For high-dimensional data (more than 4 features), dimensionality reduction techniques like PCA and UMAP help visualize anomalies in 2D space. For large datasets, automatic smart sampling is applied to improve visualization speed while preserving all anomalies.
+
+### PCA Visualization
+
+```{r pca_viz, eval=FALSE}
+# Quick PCA projection
+plot_pca <- plot_anomalies_2d(
+  model = model,
+  data = iris[1:4],
+  dim_reduction = "pca",
+  method = "mtt"
+)
+print(plot_pca)
+```
+
+**Features:**
+- Shows variance explained by PC1 and PC2
+- Fast and stable
+- Works with any dimensional data
+- Automatic sampling for large datasets (anomalies always shown)
+
+### UMAP Visualization
+
+```{r umap_viz, eval=FALSE}
+# Requires: install.packages("umap")
+
+# UMAP projection (better for non-linear patterns)
+plot_umap <- plot_anomalies_2d(
+  model = model,
+  data = iris[1:4],
+  dim_reduction = "umap",
+  method = "mtt",
+  umap_n_neighbors = 15,
+  umap_min_dist = 0.1
+)
+print(plot_umap)
+```
+
+**Features:**
+- Preserves local and global structure
+- Better reveals clusters
+- Ideal for complex, non-linear relationships
+
+### PCA vs UMAP Comparison
+
+```{r comparison, eval=FALSE}
+# Requires: install.packages(c("umap", "gridExtra"))
+
+# Compare both methods side-by-side
+comparison <- compare_dim_reduction(
+  model = model,
+  data = iris[1:4],
+  method = "mtt"
+)
+```
+
+### Smart Sampling for Large Datasets
+
+For datasets with many points, the visualization functions automatically apply smart sampling to improve speed:
+
+```{r smart_sampling, eval=FALSE}
+# Default: anomalies represent 5% of displayed points
+# If you have 100 anomalies, ~2000 total points will be shown
+plot_anomalies_2d(model, large_data)
+
+# Show fewer points (faster, anomalies = 10% of display)
+plot_anomalies_2d(model, large_data, sample_rate = 0.10)
+
+# Show more points (slower, anomalies = 2% of display)
+plot_anomalies_2d(model, large_data, sample_rate = 0.02)
+
+# Disable sampling (show all points)
+plot_anomalies_2d(model, large_data, sample_rate = NULL)
+```
+
+**How it works:**
+- All anomalies are **always shown**
+- Normal points are randomly sampled
+- Target: anomalies represent `sample_rate` proportion of displayed data
+- Example: 50 anomalies with `sample_rate = 0.05` → show ~1000 total points
+
+**When sampling is applied, the subtitle will show:**
+```
+Method: mtt | Anomalies: 50/5000 (1.0%) | Threshold: 0.635 | Showing: ~1000/5000 points
+```
+
+### When to Use Which Method?
+
+| Scenario | Recommended Method |
+|----------|-------------------|
+| Quick exploration | PCA |
+| Linear relationships | PCA |
+| Non-linear patterns | UMAP |
+| Cluster discovery | UMAP |
+| Need interpretability | PCA |
+| Complex high-dimensional data | UMAP |
+
+### Recommended Workflow
+
+1. **Start with PCA** for fast exploration
+   ```r
+   plot_anomalies_2d(model, data, dim_reduction = "pca")
+   # Default sample_rate = 0.05 (anomalies = 5% of display)
+   ```
+
+2. **Try UMAP** if PCA doesn't separate anomalies well
+   ```r
+   plot_anomalies_2d(model, data, dim_reduction = "umap")
+   ```
+
+3. **Compare both** methods to see which works better
+   ```r
+   compare_dim_reduction(model, data)
+   # Shows PCA and UMAP side-by-side with shared title
+   ```
+
+4. **Adjust sampling** if needed for speed or detail
+   ```r
+   # Faster visualization (fewer points)
+   plot_anomalies_2d(model, data, sample_rate = 0.10)
+   
+   # More detail (more points)
+   plot_anomalies_2d(model, data, sample_rate = 0.02)
+   ```
+
+5. **Validate with feature-level analysis**
+   ```r
+   plot_feature_boxplot_faceted(
+     contribution_obj = NULL,
+     data = data,
+     sample_id = anomaly_ids
+   )
+   ```
+
+This multi-level approach ensures you understand anomalies from both global (dimensionality reduction) and local (feature-level) perspectives. The smart sampling feature makes it practical to visualize large datasets without sacrificing insight into anomalies.
+```

@@ -736,3 +736,298 @@ plot_feature_boxplot_faceted <- function(contribution_obj = NULL,
   
   return(p)
 }
+
+#' @title Visualize anomalies using dimensionality reduction
+#' @description
+#' Create 2D visualization of anomalies using PCA or UMAP dimensionality reduction.
+#' Anomalies are highlighted in red, normal points in blue.
+#' For large datasets (>3000 points), automatic sampling is applied to improve speed.
+#' 
+#' @param model An isoForest model object
+#' @param data The original data (must be numeric)
+#' @param method Threshold method for anomaly detection (default: "mad")
+#' @param dim_reduction Dimensionality reduction method: "pca" or "umap" (default: "pca")
+#' @param contamination Contamination rate (only used if method = "contamination")
+#' @param point_size Size of points in the plot (default: 2)
+#' @param point_alpha Transparency of points (default: 0.6)
+#' @param umap_n_neighbors Number of neighbors for UMAP (default: 15)
+#' @param umap_min_dist Minimum distance for UMAP (default: 0.1)
+#' @param sample_rate Target anomaly rate in the displayed data (default: 0.05). 
+#'   The function will sample normal points so that anomalies represent this 
+#'   proportion of total displayed points. Set to NULL to disable sampling.
+#'   For example, if sample_rate = 0.05 and there are 100 anomalies, 
+#'   the total displayed points will be approximately 2000 (100/0.05).
+#' 
+#' @return A ggplot2 object showing the 2D projection with anomalies in red
+#' 
+#' @examples
+#' \dontrun{
+#' # Using PCA for dimensionality reduction
+#' model <- isoForest(iris[1:4])
+#' plot_pca <- plot_anomalies_2d(model, iris[1:4], dim_reduction = "pca")
+#' print(plot_pca)
+#' 
+#' # Using UMAP for dimensionality reduction
+#' plot_umap <- plot_anomalies_2d(model, iris[1:4], dim_reduction = "umap")
+#' print(plot_umap)
+#' 
+#' # For large datasets, automatic sampling is applied
+#' # large_data <- matrix(rnorm(5000 * 5), ncol = 5)
+#' # model <- isoForest(large_data)
+#' # plot_anomalies_2d(model, large_data)  # Samples so anomalies = 5% of display
+#' 
+#' # Custom sample rate: show fewer points (anomalies = 10% of display)
+#' # plot_anomalies_2d(model, large_data, sample_rate = 0.10)
+#' }
+#' 
+#' @export
+plot_anomalies_2d <- function(model, data, 
+                              method = "mad",
+                              dim_reduction = c("pca", "umap"),
+                              contamination = 0.05,
+                              point_size = 2,
+                              point_alpha = 0.6,
+                              umap_n_neighbors = 15,
+                              umap_min_dist = 0.1,
+                              sample_rate = 0.05) {
+  
+  # Validate parameters
+  dim_reduction <- match.arg(dim_reduction)
+  
+  if (!requireNamespace("ggplot2", quietly = TRUE)) {
+    stop("Package 'ggplot2' is required for this function")
+  }
+  
+  # Detect anomalies
+  result <- set_anomaly_threshold(model, method = method, contamination = contamination)
+  is_anomaly <- result$predictions$is_anomaly
+  anomaly_scores <- result$predictions$anomaly_score
+  
+  n_total <- nrow(data)
+  n_anomalies <- sum(is_anomaly)
+  
+  # Smart sampling based on target anomaly rate
+  sampled <- FALSE
+  sample_indices <- NULL
+  
+  if (!is.null(sample_rate) && sample_rate > 0 && sample_rate < 1) {
+    # Keep all anomalies
+    anomaly_indices <- which(is_anomaly)
+    normal_indices <- which(!is_anomaly)
+    
+    # Calculate target total points: n_anomalies / sample_rate
+    # For example: if 100 anomalies and sample_rate = 0.05, target = 100/0.05 = 2000 points
+    target_total <- ceiling(n_anomalies / sample_rate)
+    
+    # Calculate how many normal points we need
+    n_normal_sample <- target_total - n_anomalies
+    
+    # Only sample if we have more normal points than needed
+    if (n_normal_sample > 0 && 
+        length(normal_indices) > n_normal_sample && 
+        target_total < n_total) {
+      # Randomly sample normal points
+      set.seed(42)  # For reproducibility
+      normal_sample <- sample(normal_indices, n_normal_sample)
+      sample_indices <- c(anomaly_indices, normal_sample)
+      sample_indices <- sort(sample_indices)
+      
+      # Update data and flags
+      data <- data[sample_indices, , drop = FALSE]
+      is_anomaly <- is_anomaly[sample_indices]
+      anomaly_scores <- anomaly_scores[sample_indices]
+      sampled <- TRUE
+    }
+  }
+  
+  # Standardize data
+  data_scaled <- scale(data)
+  
+  # Perform dimensionality reduction
+  if (dim_reduction == "pca") {
+    # PCA dimensionality reduction
+    pca_result <- stats::prcomp(data_scaled)
+    coords <- as.data.frame(pca_result$x[, 1:2])
+    colnames(coords) <- c("Dim1", "Dim2")
+    
+    # Calculate variance explained
+    var_exp <- summary(pca_result)$importance[2, 1:2] * 100
+    x_label <- sprintf("PC1 (%.1f%%)", var_exp[1])
+    y_label <- sprintf("PC2 (%.1f%%)", var_exp[2])
+    method_name <- "PCA"
+    
+  } else if (dim_reduction == "umap") {
+    # UMAP dimensionality reduction
+    if (!requireNamespace("umap", quietly = TRUE)) {
+      stop("Package 'umap' is required. Please install it: install.packages('umap')")
+    }
+    
+    umap_config <- umap::umap.defaults
+    umap_config$n_neighbors <- umap_n_neighbors
+    umap_config$min_dist <- umap_min_dist
+    
+    umap_result <- umap::umap(data_scaled, config = umap_config)
+    coords <- as.data.frame(umap_result$layout)
+    colnames(coords) <- c("Dim1", "Dim2")
+    
+    x_label <- "UMAP1"
+    y_label <- "UMAP2"
+    method_name <- "UMAP"
+  }
+  
+  # Prepare plotting data
+  plot_data <- coords
+  plot_data$type <- ifelse(is_anomaly, "Anomaly", "Normal")
+  plot_data$anomaly_score <- anomaly_scores
+  
+  # Calculate statistics
+  n_anomalies_shown <- sum(is_anomaly)
+  n_shown <- nrow(data)
+  anomaly_rate <- n_anomalies / n_total * 100
+  
+  # Create title and subtitle
+  plot_title <- sprintf("%s Projection: Anomaly Detection Visualization", method_name)
+  
+  if (sampled) {
+    plot_subtitle <- sprintf("Method: %s | Anomalies: %d/%d (%.1f%%) | Threshold: %.3f | Showing: %d/%d points",
+                            method, n_anomalies, n_total, anomaly_rate, result$threshold, 
+                            n_shown, n_total)
+  } else {
+    plot_subtitle <- sprintf("Method: %s | Anomalies: %d/%d (%.1f%%) | Threshold: %.3f",
+                            method, n_anomalies, n_total, anomaly_rate, result$threshold)
+  }
+  
+  # Create plot - anomalies in red, normal in blue
+  p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Dim1, y = Dim2, color = type)) +
+    ggplot2::geom_point(size = point_size, alpha = point_alpha) +
+    ggplot2::scale_color_manual(
+      values = c("Normal" = "steelblue", "Anomaly" = "red"),
+      name = "Type"
+    ) +
+    ggplot2::labs(
+      title = plot_title,
+      subtitle = plot_subtitle,
+      x = x_label,
+      y = y_label
+    ) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(face = "bold", size = 14),
+      plot.subtitle = ggplot2::element_text(size = 10, color = "gray40"),
+      legend.position = "bottom"
+    )
+  
+  return(p)
+}
+
+#' @title Compare PCA and UMAP visualizations side by side
+#' @description
+#' Create a comparison plot showing both PCA and UMAP projections of the same data,
+#' making it easy to see how different dimensionality reduction methods reveal anomalies.
+#' For large datasets, automatic sampling is applied to improve speed.
+#' 
+#' @param model An isoForest model object
+#' @param data The original data (must be numeric)
+#' @param method Threshold method for anomaly detection (default: "mtt")
+#' @param contamination Contamination rate (only used if method = "contamination")
+#' @param point_size Size of points in the plot (default: 2)
+#' @param point_alpha Transparency of points (default: 0.6)
+#' @param umap_n_neighbors Number of neighbors for UMAP (default: 15)
+#' @param umap_min_dist Minimum distance for UMAP (default: 0.1)
+#' @param sample_rate Target anomaly rate in the displayed data (default: 0.05). 
+#'   Set to NULL to disable sampling.
+#' 
+#' @return A combined ggplot2 object showing both PCA and UMAP projections
+#' 
+#' @examples
+#' \dontrun{
+#' model <- isoForest(iris[1:4])
+#' comparison_plot <- compare_dim_reduction(model, iris[1:4])
+#' print(comparison_plot)
+#' }
+#' 
+#' @export
+compare_dim_reduction <- function(model, data,
+                                 method = "mtt",
+                                 contamination = 0.05,
+                                 point_size = 2,
+                                 point_alpha = 0.6,
+                                 umap_n_neighbors = 15,
+                                 umap_min_dist = 0.1,
+                                 sample_rate = 0.05) {
+  
+  if (!requireNamespace("gridExtra", quietly = TRUE)) {
+    stop("Package 'gridExtra' is required. Please install it: install.packages('gridExtra')")
+  }
+  
+  # Detect anomalies first to get statistics for shared title
+  result <- set_anomaly_threshold(model, method = method, contamination = contamination)
+  n_anomalies <- sum(result$predictions$is_anomaly)
+  n_total <- nrow(data)
+  anomaly_rate <- n_anomalies / n_total * 100
+  
+  # Generate PCA plot without title
+  p_pca <- plot_anomalies_2d(model, data, 
+                            method = method,
+                            dim_reduction = "pca",
+                            contamination = contamination,
+                            point_size = point_size,
+                            point_alpha = point_alpha,
+                            sample_rate = sample_rate)
+  
+  # Generate UMAP plot without title
+  p_umap <- plot_anomalies_2d(model, data,
+                             method = method,
+                             dim_reduction = "umap",
+                             contamination = contamination,
+                             point_size = point_size,
+                             point_alpha = point_alpha,
+                             umap_n_neighbors = umap_n_neighbors,
+                             umap_min_dist = umap_min_dist,
+                             sample_rate = sample_rate)
+  
+  # Remove individual titles and subtitles
+  p_pca <- p_pca + ggplot2::labs(title = NULL, subtitle = NULL)
+  p_umap <- p_umap + ggplot2::labs(title = NULL, subtitle = NULL)
+  
+  # Create shared title and subtitle
+  shared_title <- "PCA vs UMAP: Anomaly Detection Comparison"
+  
+  # Check if data was sampled
+  if (!is.null(sample_rate) && sample_rate > 0 && sample_rate < 1) {
+    target_total <- ceiling(n_anomalies / sample_rate)
+    if (target_total < n_total) {
+      shared_subtitle <- sprintf("Method: %s | Anomalies: %d/%d (%.1f%%) | Threshold: %.3f | Showing: ~%d/%d points",
+                                method, n_anomalies, n_total, anomaly_rate, result$threshold,
+                                target_total, n_total)
+    } else {
+      shared_subtitle <- sprintf("Method: %s | Anomalies: %d/%d (%.1f%%) | Threshold: %.3f",
+                                method, n_anomalies, n_total, anomaly_rate, result$threshold)
+    }
+  } else {
+    shared_subtitle <- sprintf("Method: %s | Anomalies: %d/%d (%.1f%%) | Threshold: %.3f",
+                              method, n_anomalies, n_total, anomaly_rate, result$threshold)
+  }
+  
+  # Create title grobs
+  title_grob <- grid::textGrob(
+    shared_title,
+    gp = grid::gpar(fontface = "bold", fontsize = 14)
+  )
+  
+  subtitle_grob <- grid::textGrob(
+    shared_subtitle,
+    gp = grid::gpar(fontsize = 10, col = "gray40")
+  )
+  
+  # Combine title, subtitle, and plots
+  combined_plot <- gridExtra::grid.arrange(
+    title_grob,
+    subtitle_grob,
+    gridExtra::arrangeGrob(p_pca, p_umap, ncol = 2),
+    ncol = 1,
+    heights = c(0.8, 0.6, 10)
+  )
+  
+  return(combined_plot)
+}
