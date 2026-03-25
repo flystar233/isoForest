@@ -97,20 +97,6 @@ calculate_path_contributions_batch <- function(object, sample_ids, sample_data_c
     tryCatch(ranger::treeInfo(object$model, i), error = function(e) NULL)
   })
 
-  # Build parent lookup tables for each tree (fast node lookups)
-  tree_parent_maps <- lapply(tree_infos, function(tree_info) {
-    if (is.null(tree_info) || nrow(tree_info) == 0) return(NULL)
-    # Map: node_id -> parent row index
-    parent_map <- rep(NA_integer_, max(tree_info$nodeID, tree_info$leftChild, tree_info$rightChild, na.rm = TRUE) + 1)
-    for (idx in seq_len(nrow(tree_info))) {
-      left_child <- tree_info$leftChild[idx]
-      right_child <- tree_info$rightChild[idx]
-      if (!is.na(left_child)) parent_map[left_child + 1] <- idx
-      if (!is.na(right_child)) parent_map[right_child + 1] <- idx
-    }
-    list(parent_map = parent_map, info = tree_info)
-  })
-
   # Dynamically calculate max tree depth from actual tree structures
   max_depth <- calculate_max_tree_depth(tree_infos)
   if (max_depth < 20) max_depth <- 20
@@ -123,29 +109,26 @@ calculate_path_contributions_batch <- function(object, sample_ids, sample_data_c
     total_splits <- 0
 
     for (tree_id in seq_len(n_trees)) {
-      tree_map <- tree_parent_maps[[tree_id]]
-      if (is.null(tree_map)) next
+      tree_info <- tree_infos[[tree_id]]
+      if (is.null(tree_info) || nrow(tree_info) == 0) next
 
       node_id <- tnm[i, tree_id]
       if (is.na(node_id) || node_id < 0) next
 
-      tree_info <- tree_map$info
-      parent_map <- tree_map$parent_map
       current_node <- node_id
 
       for (depth in 1:max_depth) {
-        # Fast O(1) array lookup instead of which()
-        parent_idx <- parent_map[current_node + 1]
+        # Find parent node
+        parent_idx <- which(tree_info$leftChild == current_node | tree_info$rightChild == current_node)
+        if (length(parent_idx) == 0) break
 
-        if (is.na(parent_idx)) break
-
-        split_var <- tree_info$splitvarName[parent_idx]
+        split_var <- tree_info$splitvarName[parent_idx[1]]
         if (!is.na(split_var) && !is.null(feature_set[[split_var]])) {
           feature_counts[split_var] <- feature_counts[split_var] + 1
           total_splits <- total_splits + 1
         }
 
-        current_node <- tree_info$nodeID[parent_idx]
+        current_node <- tree_info$nodeID[parent_idx[1]]
         if (is.na(current_node) || current_node == 0) break
       }
     }
