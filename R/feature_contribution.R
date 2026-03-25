@@ -25,37 +25,41 @@
 #'                                     data = iris[1:4], method = "permutation",
 #'                                     n_permutations = 10)  # 10-15 recommended
 #' @export
-feature_contribution <- function(object, 
+feature_contribution <- function(object,
                                 sample_ids = NULL,
                                 data,
                                 method = "path",
                                 contamination = 0.05,
                                 n_permutations = 15,
                                 max_trees = 50) {
-  
+
   # Combined validation
   if (!inherits(object, "isoForest")) stop("Object must be an isoForest model")
   method <- match.arg(method, c("path", "permutation"))
   data <- as.data.frame(data)
-  
+
   # Get sample IDs efficiently
   if (is.null(sample_ids)) {
     sample_ids <- which(is_anomaly(object, contamination = contamination))
     if (length(sample_ids) == 0) stop("No anomalies detected. Increase contamination rate.")
   }
-  
+
   # Single validation check
   sample_ids <- sample_ids[sample_ids > 0 & sample_ids <= min(nrow(data), nrow(object$scores))]
   if (length(sample_ids) == 0) stop("No valid sample_ids found")
-  
+
   # Cache feature names once
   feature_names <- object$model$forest$independent.variable.names
-  
+  feature_set <- setNames(rep(TRUE, length(feature_names)), feature_names)
+
+  # Pre-cache sample data for both methods
+  sample_data_cache <- data[sample_ids, , drop = FALSE]
+
   # Calculate contributions efficiently
   results <- if (method == "path") {
-    calculate_path_contributions_batch(object, sample_ids, data, feature_names, max_trees)
+    calculate_path_contributions_batch(object, sample_ids, sample_data_cache, data, feature_names, feature_set, max_trees)
   } else {
-    calculate_permutation_contributions_batch(object, sample_ids, data, feature_names, n_permutations)
+    calculate_permutation_contributions_batch(object, sample_ids, sample_data_cache, data, feature_names, n_permutations)
   }
   
   # Add simple summary for multiple samples
@@ -65,11 +69,13 @@ feature_contribution <- function(object,
       data.frame(t(x$contributions), stringsAsFactors = FALSE)
     })
     contrib_matrix <- as.matrix(data.table::rbindlist(contrib_list))
+    mean_contribs <- colMeans(contrib_matrix)
+    sort_order <- order(mean_contribs, decreasing = TRUE)
     results$summary <- data.frame(
-      feature = feature_names,
-      mean_contribution = colMeans(contrib_matrix),
+      feature = feature_names[sort_order],
+      mean_contribution = mean_contribs[sort_order],
       stringsAsFactors = FALSE
-    )[order(colMeans(contrib_matrix), decreasing = TRUE), ]
+    )
     rownames(results$summary) <- NULL
   }
   
@@ -78,11 +84,10 @@ feature_contribution <- function(object,
 }
 
 #' Batch calculate path-based contributions (optimized)
-calculate_path_contributions_batch <- function(object, sample_ids, data, feature_names, max_trees) {
+calculate_path_contributions_batch <- function(object, sample_ids, sample_data_cache, data, feature_names, feature_set, max_trees) {
 
   # Pre-calculate terminal nodes for all samples at once
-  sample_data <- data[sample_ids, , drop = FALSE]
-  tnm <- stats::predict(object$model, sample_data, type = "terminalNodes")$predictions
+  tnm <- stats::predict(object$model, sample_data_cache, type = "terminalNodes")$predictions
 
   # Limit trees for performance
   n_trees <- min(object$model$num.trees, max_trees)
@@ -92,9 +97,23 @@ calculate_path_contributions_batch <- function(object, sample_ids, data, feature
     tryCatch(ranger::treeInfo(object$model, i), error = function(e) NULL)
   })
 
+  # Build parent lookup tables for each tree (fast node lookups)
+  tree_parent_maps <- lapply(tree_infos, function(tree_info) {
+    if (is.null(tree_info) || nrow(tree_info) == 0) return(NULL)
+    # Map: node_id -> parent row index
+    parent_map <- rep(NA_integer_, max(tree_info$nodeID, tree_info$leftChild, tree_info$rightChild, na.rm = TRUE) + 1)
+    for (idx in seq_len(nrow(tree_info))) {
+      left_child <- tree_info$leftChild[idx]
+      right_child <- tree_info$rightChild[idx]
+      if (!is.na(left_child)) parent_map[left_child + 1] <- idx
+      if (!is.na(right_child)) parent_map[right_child + 1] <- idx
+    }
+    list(parent_map = parent_map, info = tree_info)
+  })
+
   # Dynamically calculate max tree depth from actual tree structures
   max_depth <- calculate_max_tree_depth(tree_infos)
-  if (max_depth < 20) max_depth <- 20  # Minimum reasonable depth
+  if (max_depth < 20) max_depth <- 20
 
   results <- list()
 
@@ -104,86 +123,86 @@ calculate_path_contributions_batch <- function(object, sample_ids, data, feature
     total_splits <- 0
 
     for (tree_id in seq_len(n_trees)) {
-      tree_info <- tree_infos[[tree_id]]
-      if (is.null(tree_info) || nrow(tree_info) == 0) next
+      tree_map <- tree_parent_maps[[tree_id]]
+      if (is.null(tree_map)) next
 
       node_id <- tnm[i, tree_id]
       if (is.na(node_id) || node_id < 0) next
 
-      # Efficient path traversal using vectorized operations
+      tree_info <- tree_map$info
+      parent_map <- tree_map$parent_map
       current_node <- node_id
-      for (depth in 1:max_depth) {  # Dynamic depth limit based on actual tree structures
-        parent_idx <- which(tree_info$leftChild == current_node | tree_info$rightChild == current_node)
-        if (length(parent_idx) == 0) break
 
-        split_var <- tree_info$splitvarName[parent_idx[1]]
-        if (!is.na(split_var) && split_var %in% feature_names) {
+      for (depth in 1:max_depth) {
+        # Fast O(1) array lookup instead of which()
+        parent_idx <- parent_map[current_node + 1]
+
+        if (is.na(parent_idx)) break
+
+        split_var <- tree_info$splitvarName[parent_idx]
+        if (!is.na(split_var) && !is.null(feature_set[[split_var]])) {
           feature_counts[split_var] <- feature_counts[split_var] + 1
           total_splits <- total_splits + 1
         }
 
-        current_node <- tree_info$nodeID[parent_idx[1]]
+        current_node <- tree_info$nodeID[parent_idx]
         if (is.na(current_node) || current_node == 0) break
       }
     }
-    
+
     # Calculate contributions with simple fallback
     if (total_splits > 0) {
       contributions <- feature_counts / total_splits
     } else {
-      # Simple extremeness-based fallback
       contributions <- calculate_extremeness_simple(data, id, feature_names)
     }
-    
+
     results[[paste0("sample_", id)]] <- list(
       sample_id = id,
       score = object$scores$anomaly_score[id],
       contributions = contributions
     )
   }
-  
+
   return(results)
 }
 
 #' Batch calculate permutation importance (highly optimized)
-calculate_permutation_contributions_batch <- function(object, sample_ids, data, feature_names, n_permutations) {
-  
+calculate_permutation_contributions_batch <- function(object, sample_ids, sample_data_cache, data, feature_names, n_permutations) {
+
   results <- list()
   n_samples <- length(sample_ids)
   n_features <- length(feature_names)
-  
+
   # Progress indicator for long computations
   if (n_samples > 5) {
     cat("Calculating permutation importance for", n_samples, "samples",
         "with", n_permutations, "permutations...\n")
   }
-  
+
   for (i in seq_along(sample_ids)) {
     id <- sample_ids[i]
     original_score <- object$scores$anomaly_score[id]
     importance_scores <- setNames(rep(0, length(feature_names)), feature_names)
-    
+
     # Progress indicator
     if (n_samples > 5 && i %% 5 == 0) {
       cat("  Progress:", i, "/", n_samples, "\n")
     }
-    
-    # Create base sample once
-    sample_row <- data[id, , drop = FALSE]
-    
-    # **Optimization 1**: Batch all permutations for all features together
-    # Instead of calling predict n_features * n_permutations times,
-    # we create one large matrix and call predict once
-    
+
+    # Use cached sample data instead of re-reading
+    sample_row <- sample_data_cache[i, , drop = FALSE]
+
+    # Batch all permutations for all features together
     all_permuted_data <- vector("list", n_features)
-    
+
     for (j in seq_along(feature_names)) {
       feature <- feature_names[j]
       if (!feature %in% colnames(data)) {
         all_permuted_data[[j]] <- NULL
         next
       }
-      
+
       # Create permuted data for this feature
       permuted_data <- sample_row[rep(1, n_permutations), , drop = FALSE]
       permuted_data[, feature] <- sample(data[[feature]], n_permutations, replace = TRUE)
@@ -235,18 +254,19 @@ calculate_permutation_contributions_batch <- function(object, sample_ids, data, 
 
 #' Simple extremeness calculation (optimized fallback)
 calculate_extremeness_simple <- function(data, sample_id, feature_names) {
-  
-  weights <- setNames(rep(0, length(feature_names)), feature_names)
+
   sample_values <- data[sample_id, feature_names, drop = FALSE]
-  
-  # Vectorized percentile calculation
-  for (feature in feature_names) {
+
+  # Fully vectorized percentile calculation
+  weights <- sapply(feature_names, function(feature) {
     if (feature %in% colnames(data)) {
       percentile <- mean(data[[feature]] <= sample_values[[feature]], na.rm = TRUE)
-      weights[feature] <- 2 * abs(percentile - 0.5)
+      2 * abs(percentile - 0.5)
+    } else {
+      0
     }
-  }
-  
+  })
+
   # Normalize
   total_weight <- sum(weights)
   if (total_weight > 0) {
@@ -254,7 +274,7 @@ calculate_extremeness_simple <- function(data, sample_id, feature_names) {
   } else {
     weights[] <- 1 / length(feature_names)
   }
-  
+
   return(weights)
 }
 
