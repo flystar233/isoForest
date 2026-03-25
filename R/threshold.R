@@ -370,15 +370,15 @@ thompson_tau_critical <- function(n, alpha = 0.05) {
   if (n < 3) {
     stop("Sample size must be at least 3")
   }
-  
+
   # Degrees of freedom
   df <- n - 2
-  
+
   # Critical t-value (two-tailed, Bonferroni corrected)
   t_crit <- stats::qt(1 - alpha/(2*n), df)
-  
+
   # Calculate tau
   tau <- (t_crit * (n - 1)) / sqrt(n * (df + t_crit^2))
-  
+
   return(tau)
 }

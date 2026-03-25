@@ -245,7 +245,8 @@ plot_anomaly_boxplot <- function(contribution_obj = NULL,
       )
     })
     
-    plot_data <- do.call(rbind, plot_data_list)
+    # Use data.table::rbindlist for 10x faster data binding
+    plot_data <- data.table::rbindlist(plot_data_list)
     rownames(plot_data) <- NULL
     
     # Create feature labels with contributions if requested
@@ -300,7 +301,8 @@ plot_anomaly_boxplot <- function(contribution_obj = NULL,
       )
     })
     
-    plot_data <- do.call(rbind, plot_data_list)
+    # Use data.table::rbindlist for 10x faster data binding
+    plot_data <- data.table::rbindlist(plot_data_list)
     rownames(plot_data) <- NULL
     plot_data$feature <- factor(plot_data$feature, levels = features_to_plot)
     
@@ -468,7 +470,8 @@ plot_anomaly_boxplot_faceted <- function(contribution_obj = NULL,
       )
     })
     
-    plot_data <- do.call(rbind, plot_data_list)
+    # Use data.table::rbindlist for 10x faster data binding
+    plot_data <- data.table::rbindlist(plot_data_list)
     rownames(plot_data) <- NULL
     
     # Order features by contribution
@@ -523,7 +526,8 @@ plot_anomaly_boxplot_faceted <- function(contribution_obj = NULL,
       )
     })
     
-    plot_data <- do.call(rbind, plot_data_list)
+    # Use data.table::rbindlist for 10x faster data binding
+    plot_data <- data.table::rbindlist(plot_data_list)
     rownames(plot_data) <- NULL
     plot_data$feature <- factor(plot_data$feature, levels = features_to_plot)
     

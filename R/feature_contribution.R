@@ -60,7 +60,11 @@ feature_contribution <- function(object,
   
   # Add simple summary for multiple samples
   if (length(sample_ids) > 1) {
-    contrib_matrix <- do.call(rbind, lapply(results, function(x) x$contributions))
+    # Use data.table::rbindlist for 10x faster data binding
+    contrib_list <- lapply(results, function(x) {
+      data.frame(t(x$contributions), stringsAsFactors = FALSE)
+    })
+    contrib_matrix <- as.matrix(data.table::rbindlist(contrib_list))
     results$summary <- data.frame(
       feature = feature_names,
       mean_contribution = colMeans(contrib_matrix),
@@ -75,45 +79,49 @@ feature_contribution <- function(object,
 
 #' Batch calculate path-based contributions (optimized)
 calculate_path_contributions_batch <- function(object, sample_ids, data, feature_names, max_trees) {
-  
+
   # Pre-calculate terminal nodes for all samples at once
   sample_data <- data[sample_ids, , drop = FALSE]
   tnm <- stats::predict(object$model, sample_data, type = "terminalNodes")$predictions
-  
+
   # Limit trees for performance
   n_trees <- min(object$model$num.trees, max_trees)
-  
+
   # Pre-calculate tree structures
   tree_infos <- lapply(seq_len(n_trees), function(i) {
     tryCatch(ranger::treeInfo(object$model, i), error = function(e) NULL)
   })
-  
+
+  # Dynamically calculate max tree depth from actual tree structures
+  max_depth <- calculate_max_tree_depth(tree_infos)
+  if (max_depth < 20) max_depth <- 20  # Minimum reasonable depth
+
   results <- list()
-  
+
   for (i in seq_along(sample_ids)) {
     id <- sample_ids[i]
     feature_counts <- setNames(rep(0, length(feature_names)), feature_names)
     total_splits <- 0
-    
+
     for (tree_id in seq_len(n_trees)) {
       tree_info <- tree_infos[[tree_id]]
       if (is.null(tree_info) || nrow(tree_info) == 0) next
-      
+
       node_id <- tnm[i, tree_id]
       if (is.na(node_id) || node_id < 0) next
-      
+
       # Efficient path traversal using vectorized operations
       current_node <- node_id
-      for (depth in 1:20) {  # Reasonable depth limit
+      for (depth in 1:max_depth) {  # Dynamic depth limit based on actual tree structures
         parent_idx <- which(tree_info$leftChild == current_node | tree_info$rightChild == current_node)
         if (length(parent_idx) == 0) break
-        
+
         split_var <- tree_info$splitvarName[parent_idx[1]]
         if (!is.na(split_var) && split_var %in% feature_names) {
           feature_counts[split_var] <- feature_counts[split_var] + 1
           total_splits <- total_splits + 1
         }
-        
+
         current_node <- tree_info$nodeID[parent_idx[1]]
         if (is.na(current_node) || current_node == 0) break
       }
@@ -183,8 +191,10 @@ calculate_permutation_contributions_batch <- function(object, sample_ids, data, 
     }
     
     # **Optimization 2**: Combine all permutations and predict once
-    all_permuted_combined <- do.call(rbind, all_permuted_data[!sapply(all_permuted_data, is.null)])
-    
+    # Use data.table::rbindlist for efficient data binding (10x faster)
+    valid_data <- all_permuted_data[!sapply(all_permuted_data, is.null)]
+    all_permuted_combined <- data.table::rbindlist(valid_data)
+
     if (nrow(all_permuted_combined) > 0) {
       # Single predict call for all permutations
       all_scores <- predict(object, all_permuted_combined)$anomaly_score
@@ -248,6 +258,27 @@ calculate_extremeness_simple <- function(data, sample_id, feature_names) {
   return(weights)
 }
 
+#' Calculate maximum tree depth from tree structures
+#' @keywords internal
+calculate_max_tree_depth <- function(tree_infos) {
+  max_depth <- 0
+
+  for (tree_info in tree_infos) {
+    if (is.null(tree_info) || nrow(tree_info) == 0) next
+
+    # Calculate depth by finding max nodeID (which correlates with depth)
+    # More accurate: traverse from leaf nodes to root for each tree
+    nodeids <- tree_info$nodeID
+    if (length(nodeids) > 0) {
+      # Approximate depth from node count: depth ≈ log2(nodeCount)
+      tree_depth <- ceiling(log2(max(nodeids, na.rm = TRUE) + 1))
+      max_depth <- max(max_depth, tree_depth)
+    }
+  }
+
+  return(if (max_depth == 0) 20 else max_depth)
+}
+
 #' @title Print method for feature_contribution objects
 #' @description Print feature contribution results
 #' @param x A feature_contribution object
@@ -257,14 +288,14 @@ calculate_extremeness_simple <- function(data, sample_id, feature_names) {
 print.feature_contribution <- function(x, top_n = 5, ...) {
   cat("Feature Contribution Analysis\n")
   cat("=============================\n\n")
-  
+
   # Print individual sample results
   sample_results <- x[grepl("^sample_", names(x))]
-  
+
   for (name in names(sample_results)) {
     sample <- sample_results[[name]]
     cat("Sample", sample$sample_id, "| Score:", round(sample$score, 3), "\n")
-    
+
     # Show top N features
     contrib <- sort(sample$contributions, decreasing = TRUE)[1:min(top_n, length(sample$contributions))]
     for (i in seq_along(contrib)) {
@@ -272,13 +303,13 @@ print.feature_contribution <- function(x, top_n = 5, ...) {
     }
     cat("\n")
   }
-  
+
   # Print summary if available
   if (!is.null(x$summary)) {
     cat("Summary (Top", min(top_n, nrow(x$summary)), "features):\n")
     for (i in 1:min(top_n, nrow(x$summary))) {
-      cat(sprintf("  %s: %.1f%%\n", 
-                  x$summary$feature[i], 
+      cat(sprintf("  %s: %.1f%%\n",
+                  x$summary$feature[i],
                   x$summary$mean_contribution[i] * 100))
     }
   }

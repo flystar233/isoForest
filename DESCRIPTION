@@ -19,12 +19,12 @@ Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 Packaged: 2024-08-22 11:06:44 UTC;
 RoxygenNote: 7.3.3
-Imports: 
+Imports:
     stats,
     ranger,
     dplyr,
-    tidyr,
-    ggplot2
+    ggplot2,
+    data.table
 URL: https://github.com/flystar233/isoForest
 BugReports: https://github.com/flystar233/isoForest/issues
 Suggests: 
